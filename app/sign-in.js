@@ -30,8 +30,22 @@ const SignInScreen = () => {
   const logoImage = getImage('logo');
   
   // Theme colors
-  const { getThemeColors } = useTheme();
+  const { getThemeColors, isDarkMode } = useTheme();
   const colors = getThemeColors();
+  
+  // --------------------
+  // Header appearance based on theme
+  // --------------------
+  const headerThemeStyles = {
+    headerStyle: {
+      backgroundColor: colors.background,
+    },
+    headerShadowVisible: !isDarkMode,
+    headerTitleStyle: {
+      color: colors.text,
+    },
+    headerTintColor: colors.text,
+  };
   
   // Redirect authenticated users away from sign-in page
   useEffect(() => {
@@ -58,8 +72,29 @@ const SignInScreen = () => {
     } catch (error) {
       // Normalize error message for the user
       const rawMsg = (error?.message || '').toLowerCase();
+      // Prefer server-side message if available
+      const serverMsg = (error?.response?.data?.message || '').toLowerCase();
+      const combinedMsg = `${rawMsg} ${serverMsg}`;
 
-      if (rawMsg.includes('invalid') || rawMsg.includes('credential')) {
+      const errorCode = (error?.response?.data?.error || '').toLowerCase();
+
+      const accountNotFound =
+        error?.response?.status === 404 ||
+        errorCode === 'user_not_found' ||
+        errorCode === 'account_not_found' ||
+        combinedMsg.includes('not found') ||
+        combinedMsg.includes("doesn't exist") ||
+        combinedMsg.includes('does not exist') ||
+        combinedMsg.includes('not exist') ||
+        combinedMsg.includes('no user') ||
+        combinedMsg.includes('not registered') ||
+        combinedMsg.includes('unregistered');
+
+      if (accountNotFound) {
+        Alert.alert('Account Not Found', 'No account exists with this email. Please sign up first.');
+      } else if (
+        rawMsg.includes('credential') ||
+        (/refresh(ing)? token/.test(combinedMsg) && combinedMsg.includes('network'))) {
         Alert.alert('Invalid Credentials', 'The email or password you entered is incorrect.');
       } else if (rawMsg.includes('network')) {
         Alert.alert('Network Error', 'Please check your internet connection and try again.');
@@ -82,20 +117,30 @@ const SignInScreen = () => {
   return (
     <KeyboardAvoidingView 
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      enabled
     >
       <Stack.Screen 
         options={{ 
-          title: '',
-          headerTransparent: true,
-          headerShadowVisible: false,
+          ...headerThemeStyles,
+          title: 'Sign In',
+          headerShown: true,
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ),
         }} 
       />
       
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
           {logoImage ? (
@@ -326,6 +371,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
     marginLeft: 4,
+  },
+  backButton: {
+    padding: 8,
   },
 });
 

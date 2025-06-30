@@ -13,7 +13,8 @@ import { propertyService } from '../services/propertyService';
 export default function MyProperties() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const { isDark } = useTheme();
+  const { isDark, getThemeColors } = useTheme();
+  const colors = getThemeColors();
   const { properties, loading, error, refetch } = useUserProperties();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -81,13 +82,28 @@ export default function MyProperties() {
     );
   };
 
+  // --------------------
+  // Header appearance based on theme
+  // --------------------
+  const headerThemeStyles = {
+    headerStyle: {
+      backgroundColor: colors.background,
+    },
+    headerShadowVisible: !isDark,
+    headerTitleStyle: {
+      color: colors.text,
+    },
+    headerTintColor: colors.text,
+  };
+
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <Stack.Screen
           options={{
+            ...headerThemeStyles,
             headerTitle: 'My Properties',
-            headerTitleAlign: 'center',
+            headerTitleAlign: 'left',
           }}
         />
         <EmptyState
@@ -106,11 +122,12 @@ export default function MyProperties() {
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
       <Stack.Screen
         options={{
+          ...headerThemeStyles,
           headerTitle: 'My Properties',
-          headerTitleAlign: 'center',
+          headerTitleAlign: 'left',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }}

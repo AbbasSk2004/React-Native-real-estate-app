@@ -11,6 +11,10 @@ class AuthStorage {
       this.local = null;
       this.session = null;
     }
+    // Fallback in-memory store for environments (e.g. React-Native) that
+    // don't have synchronous web-storage. Keys are stored with the same
+    // prefix so existing helper logic can remain untouched.
+    this.memory = {};
   }
 
   // Get access token
@@ -21,7 +25,14 @@ class AuthStorage {
       if (syncToken) return syncToken;
       
       // Then try AsyncStorage
-      return await AsyncStorage.getItem(this.prefix + 'access_token');
+      const asyncToken = await AsyncStorage.getItem(this.prefix + 'access_token');
+
+      // Cache in memory for subsequent synchronous reads
+      if (asyncToken) {
+        this.memory[this.prefix + 'access_token'] = asyncToken;
+      }
+
+      return asyncToken;
     } catch (error) {
       console.error('Error getting access token:', error);
       return null;
@@ -31,7 +42,11 @@ class AuthStorage {
   // Get refresh token
   getRefreshToken = async () => {
     try {
-      return await AsyncStorage.getItem(this.prefix + 'refresh_token');
+      const token = await AsyncStorage.getItem(this.prefix + 'refresh_token');
+      if (token) {
+        this.memory[this.prefix + 'refresh_token'] = token;
+      }
+      return token;
     } catch (error) {
       console.error('Error getting refresh token:', error);
       return null;
@@ -41,10 +56,19 @@ class AuthStorage {
   // Set both tokens with remember-me flag (default true => persistent)
   setTokens = async (accessToken, refreshToken, remember = true) => {
     try {
-      await AsyncStorage.multiSet([
-        [this.prefix + 'access_token', accessToken],
-        [this.prefix + 'refresh_token', refreshToken],
-      ]);
+      if (remember) {
+        await AsyncStorage.multiSet([
+          [this.prefix + 'access_token', accessToken],
+          [this.prefix + 'refresh_token', refreshToken],
+        ]);
+      } else {
+        // If the user opted **not** to be remembered, ensure no persisted
+        // tokens remain in AsyncStorage from a previous session.
+        await AsyncStorage.multiRemove([
+          this.prefix + 'access_token',
+          this.prefix + 'refresh_token',
+        ]);
+      }
 
       // Keep a synchronous copy for immediate access on web (localStorage / sessionStorage)
       this.setToken('access_token', accessToken, remember);
@@ -76,26 +100,46 @@ class AuthStorage {
   setToken(key, value, remember = true) {
     if (!value) return;
     const fullKey = this.prefix + key;
-    if (remember) {
-      this.local && this.local.setItem(fullKey, value);
-      // Ensure session copy removed
-      this.session && this.session.removeItem(fullKey);
-    } else {
-      this.session && this.session.setItem(fullKey, value);
-      // Ensure local copy removed
-      this.local && this.local.removeItem(fullKey);
+
+    // --- Web (local/session storage available) ---------------
+    if (this.local || this.session) {
+      if (remember) {
+        this.local && this.local.setItem(fullKey, value);
+        // Ensure session copy removed
+        this.session && this.session.removeItem(fullKey);
+      } else {
+        this.session && this.session.setItem(fullKey, value);
+        // Ensure local copy removed
+        this.local && this.local.removeItem(fullKey);
+      }
     }
+
+    // --- React-Native / No synchronous storage ----------------
+    // Always keep a copy in memory so that synchronous consumers
+    // (hasValidToken, getToken) can still access the token without
+    // awaiting AsyncStorage.
+    this.memory[fullKey] = value;
   }
 
   // Get a token (check sessionStorage first, then localStorage)
   getToken(key) {
     const fullKey = this.prefix + key;
+
+    // 1) sessionStorage (web, non-persistent)
     if (this.session && this.session.getItem(fullKey)) {
       return this.session.getItem(fullKey);
     }
-    if (this.local) {
+
+    // 2) localStorage (web, persistent)
+    if (this.local && this.local.getItem(fullKey)) {
       return this.local.getItem(fullKey);
     }
+
+    // 3) in-memory fallback (React-Native or after first AsyncStorage read)
+    if (this.memory[fullKey]) {
+      return this.memory[fullKey];
+    }
+
     return null;
   }
 
@@ -104,6 +148,7 @@ class AuthStorage {
     const fullKey = this.prefix + key;
     this.local && this.local.removeItem(fullKey);
     this.session && this.session.removeItem(fullKey);
+    if (this.memory[fullKey]) delete this.memory[fullKey];
   }
 
   // Check if token is valid (synchronous)
@@ -125,7 +170,27 @@ class AuthStorage {
       const [, payloadBase64] = token.split('.');
       if (!payloadBase64) return false;
 
-      const payload = JSON.parse(atob(payloadBase64));
+      // Safer base64 decode that works both on web and React-Native
+      const base64Decode = (b64) => {
+        try {
+          if (typeof atob === 'function') {
+            return atob(b64);
+          }
+        } catch (_) {}
+        // Fallback to Buffer (React-Native / Node like env)
+        try {
+          // eslint-disable-next-line global-require
+          const buf = global.Buffer || require('buffer').Buffer;
+          return buf.from(b64, 'base64').toString('binary');
+        } catch (_) {
+          return null;
+        }
+      };
+
+      const decoded = base64Decode(payloadBase64);
+      if (!decoded) return false;
+
+      const payload = JSON.parse(decoded);
       if (!payload.exp) return false;
 
       // Consider token valid if it expires >5 s from now

@@ -11,7 +11,8 @@ import { useTheme } from '../context/ThemeContext';
 export default function SavedProperties() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const { isDark } = useTheme();
+  const { isDark, getThemeColors } = useTheme();
+  const colors = getThemeColors();
   const [savedProperties, setSavedProperties] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -87,15 +88,30 @@ export default function SavedProperties() {
     router.push('/sign-in');
   };
 
+  // --------------------
+  // Header appearance based on theme
+  // --------------------
+  const headerThemeStyles = {
+    headerStyle: {
+      backgroundColor: colors.background,
+    },
+    headerShadowVisible: !isDark,
+    headerTitleStyle: {
+      color: colors.text,
+    },
+    headerTintColor: colors.text,
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <Stack.Screen
           options={{
+            ...headerThemeStyles,
             headerTitle: 'Saved Properties',
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
+                <Ionicons name="arrow-back" size={24} color={colors.text} />
               </TouchableOpacity>
             ),
           }}
@@ -113,10 +129,11 @@ export default function SavedProperties() {
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <Stack.Screen
           options={{
+            ...headerThemeStyles,
             headerTitle: 'Saved Properties',
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
+                <Ionicons name="arrow-back" size={24} color={colors.text} />
               </TouchableOpacity>
             ),
           }}
@@ -142,10 +159,11 @@ export default function SavedProperties() {
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
       <Stack.Screen
         options={{
+          ...headerThemeStyles,
           headerTitle: 'Saved Properties',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }}

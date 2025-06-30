@@ -4,9 +4,12 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import profilesService from '../services/profiles';
+import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function ChangePassword() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -18,6 +21,8 @@ export default function ChangePassword() {
     newPassword: '',
     confirmPassword: '',
   });
+  const { getThemeColors, isDark } = useTheme();
+  const colors = getThemeColors();
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -79,10 +84,12 @@ export default function ChangePassword() {
       });
       
       if (response.success) {
+        // Force logout and redirect to sign-in so user can log in with new password
+        await logout();
         Alert.alert(
           'Success',
-          'Password changed successfully',
-          [{ text: 'OK', onPress: () => router.back() }]
+          'Password changed successfully. Please log in again with your new credentials.',
+          [{ text: 'OK', onPress: () => router.replace('/sign-in') }]
         );
       } else {
         Alert.alert('Error', response.message || 'Failed to change password');
@@ -95,32 +102,47 @@ export default function ChangePassword() {
     }
   };
 
+  // Dynamic styles
+  const inputDynamicStyle = {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.text,
+  };
+
+  // Header theme styles
+  const headerThemeStyles = {
+    headerStyle: { backgroundColor: colors.background },
+    headerShadowVisible: !isDark,
+    headerTintColor: colors.text,
+    headerTitleStyle: { color: colors.text },
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
+          ...headerThemeStyles,
           headerTitle: 'Change Password',
-          headerTitleStyle: styles.headerTitle,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#333" />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }}
       />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.scrollView, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
         <View style={styles.formContainer}>
           {/* Current Password Field */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Current Password *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Current Password *</Text>
             <TextInput
               value={formData.currentPassword}
               onChangeText={(value) => handleInputChange('currentPassword', value)}
               placeholder="Enter your current password"
               secureTextEntry
-              style={[styles.input, errors.currentPassword ? styles.inputError : null]}
-              placeholderTextColor="#666876"
+              style={[styles.input, inputDynamicStyle, errors.currentPassword ? styles.inputError : null]}
+              placeholderTextColor={colors.textMuted || '#666876'}
             />
             {errors.currentPassword ? (
               <Text style={styles.errorText}>{errors.currentPassword}</Text>
@@ -129,19 +151,19 @@ export default function ChangePassword() {
 
           {/* New Password Field */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>New Password *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>New Password *</Text>
             <TextInput
               value={formData.newPassword}
               onChangeText={(value) => handleInputChange('newPassword', value)}
               placeholder="Enter your new password"
               secureTextEntry
-              style={[styles.input, errors.newPassword ? styles.inputError : null]}
-              placeholderTextColor="#666876"
+              style={[styles.input, inputDynamicStyle, errors.newPassword ? styles.inputError : null]}
+              placeholderTextColor={colors.textMuted || '#666876'}
             />
             {errors.newPassword ? (
               <Text style={styles.errorText}>{errors.newPassword}</Text>
             ) : (
-              <Text style={styles.helperText}>
+              <Text style={[styles.helperText, { color: colors.text }]}>
                 Password must be at least 8 characters long
               </Text>
             )}
@@ -149,14 +171,14 @@ export default function ChangePassword() {
 
           {/* Confirm Password Field */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm New Password *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Confirm New Password *</Text>
             <TextInput
               value={formData.confirmPassword}
               onChangeText={(value) => handleInputChange('confirmPassword', value)}
               placeholder="Confirm your new password"
               secureTextEntry
-              style={[styles.input, errors.confirmPassword ? styles.inputError : null]}
-              placeholderTextColor="#666876"
+              style={[styles.input, inputDynamicStyle, errors.confirmPassword ? styles.inputError : null]}
+              placeholderTextColor={colors.textMuted || '#666876'}
             />
             {errors.confirmPassword ? (
               <Text style={styles.errorText}>{errors.confirmPassword}</Text>

@@ -1,18 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import FavoriteButton from '../common/FavoriteButton';
 import { PROPERTY_TYPE_FIELDS, CARD_FIELD_ICONS } from '../../utils/propertyTypeFields';
 import { endpoints } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { getPropertyAnalytics } from '../../services/analyticsService';
 import favoriteEvents from '../../utils/favoriteEvents';
+import { useDebounce } from '../../hooks/useDebounce';
 
 export default function PropertyCard({ property, onPress, style, featuredStyle = false, listView = false, isDark = false, onDelete, onFeature }) {
   const { isAuthenticated } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [views, setViews] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const isFocused = useIsFocused();
+  
+  // Use debounce to prevent excessive API calls when screen is rapidly focused/unfocused
+  const debouncedIsFocused = useDebounce(isFocused, 300);
   
   // Fetch favourite status once we know the user and property id
   useEffect(() => {
@@ -32,23 +39,33 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
     return () => { isMounted = false; };
   }, [isAuthenticated, property?.id]);
 
-  // Fetch view count
+  // Fetch view count - refresh when screen is focused
   useEffect(() => {
     let isMounted = true;
+    
     const fetchViews = async () => {
       if (!property?.id) return;
+      
       try {
-        const analytics = await getPropertyAnalytics(property.id);
-        if (isMounted && analytics?.data?.views) {
+        setIsRefreshing(true);
+        // Force refresh analytics when the screen regains focus
+        const analytics = await getPropertyAnalytics(property.id, debouncedIsFocused);
+        
+        if (isMounted && analytics?.data?.views !== undefined) {
           setViews(analytics.data.views);
         }
       } catch (err) {
         console.error('Error fetching views:', err);
+      } finally {
+        if (isMounted) {
+          setIsRefreshing(false);
+        }
       }
     };
+    
     fetchViews();
     return () => { isMounted = false; };
-  }, [property?.id]);
+  }, [property?.id, debouncedIsFocused]); // Use debounced focus state
   
   // Format price display
   const formatPrice = (price) => {
@@ -241,16 +258,48 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
         iconName = 'information-circle-outline';
     }
     
+    // Determine colors based on theme and style
+    const iconColor = isFeatureStyle
+      ? "#fff"
+      : isDark
+      ? "#DDD"
+      : "#191d31";
+
+    const textStyle = isFeatureStyle
+      ? styles.featuredSpecText
+      : isDark
+      ? styles.darkSpecText
+      : styles.specText;
+
     return (
-      <View style={isFeatureStyle ? styles.featuredSpecItem : styles.specItem} key={field}>
-        <Ionicons name={iconName} size={isFeatureStyle ? 16 : 14} color={isFeatureStyle ? "#fff" : "#191d31"} />
-        <Text style={isFeatureStyle ? styles.featuredSpecText : styles.specText}>
-          {value}
-        </Text>
+      <View
+        style={isFeatureStyle ? styles.featuredSpecItem : styles.specItem}
+        key={field}
+      >
+        <Ionicons
+          name={iconName}
+          size={isFeatureStyle ? 16 : 14}
+          color={iconColor}
+        />
+        <Text style={textStyle}>{value}</Text>
       </View>
     );
   };
     
+  // Render view count with loading indicator when refreshing
+  const renderViewCount = () => {
+    return (
+      <View style={styles.viewsContainer}>
+        <Ionicons name="eye-outline" size={18} color="#0061FF" />
+        {isRefreshing ? (
+          <ActivityIndicator size="small" color="#0061FF" style={{ marginLeft: 4 }} />
+        ) : (
+          <Text style={styles.viewsText}>{views}</Text>
+        )}
+      </View>
+    );
+  };
+  
   if (featuredStyle) {
     return (
       <TouchableOpacity 
@@ -264,10 +313,7 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
         />
         <View style={styles.featuredGradient} />
         
-        <View style={styles.viewsContainer}>
-          <Ionicons name="eye-outline" size={18} color="#0061FF" />
-          <Text style={styles.viewsText}>{views}</Text>
-        </View>
+        {renderViewCount()}
         
         {isAuthenticated && (
           <FavoriteButton 
@@ -303,7 +349,7 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
   if (listView) {
     return (
       <TouchableOpacity 
-        style={[styles.listContainer, style]}
+        style={[styles.listContainer, isDark && styles.darkListContainer, style]}
         onPress={onPress}
       >
         <View style={styles.listImageContainer}>
@@ -313,15 +359,12 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
             resizeMode="cover"
           />
           
-          <View style={styles.viewsContainer}>
-            <Ionicons name="eye-outline" size={16} color="#0061FF" />
-            <Text style={styles.viewsText}>{views}</Text>
-          </View>
+          {renderViewCount()}
         </View>
         
         <View style={styles.listDetailsContainer}>
           <View>
-            <Text style={styles.listTitle} numberOfLines={1}>
+            <Text style={[styles.listTitle, isDark && styles.darkText]} numberOfLines={1}>
               {property?.title && property.title.trim().length > 0
                 ? property.title
                 : `Beautiful ${property.property_type || 'Property'}`}
@@ -330,8 +373,18 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
             <Text style={[styles.statusInline, { color: statusColor }]}>{statusText}</Text>
             
             <View style={styles.locationContainer}>
-              <Ionicons name="location-outline" size={14} color="#666876" style={styles.locationIcon} />
-              <Text style={styles.locationText} numberOfLines={1}>{location}</Text>
+              <Ionicons
+                name="location-outline"
+                size={14}
+                color={isDark ? "#AAA" : "#666876"}
+                style={styles.locationIcon}
+              />
+              <Text
+                style={[styles.locationText, isDark && styles.darkSubText]}
+                numberOfLines={1}
+              >
+                {location}
+              </Text>
             </View>
           </View>
           
@@ -340,7 +393,9 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
               {cardFields.map(field => renderSpecItem(field))}
             </View>
             
-            <Text style={styles.price}>{formatPrice(property.price)}</Text>
+            <Text style={[styles.price, isDark && styles.darkText]}>
+              {formatPrice(property.price)}
+            </Text>
           </View>
         </View>
         
@@ -438,9 +493,16 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
         </View>
 
         <View style={styles.agentContainer}>
-          <Text style={[styles.viewsCount, isDark && styles.darkSubText]}>
-            <Ionicons name="eye-outline" size={12} color={isDark ? '#AAA' : "#666"} /> {views} views
-          </Text>
+          {isRefreshing ? (
+            <View style={styles.viewsCount}>
+              <Ionicons name="eye-outline" size={12} color={isDark ? '#AAA' : "#666"} />
+              <ActivityIndicator size="small" color={isDark ? '#AAA' : "#666"} style={{ marginLeft: 4 }} />
+            </View>
+          ) : (
+            <Text style={[styles.viewsCount, isDark && styles.darkSubText]}>
+              <Ionicons name="eye-outline" size={12} color={isDark ? '#AAA' : "#666"} /> {views} views
+            </Text>
+          )}
           {property.created_at && (
             <Text style={[styles.postedDate, isDark && styles.darkSubText]}>
               {new Date(property.created_at).toLocaleDateString('en-US', {
@@ -581,6 +643,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  darkSpecText: {
+    fontSize: 14,
+    color: '#DDD',
+  },
   agentContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -699,6 +765,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 130,
     position: 'relative',
+  },
+  darkListContainer: {
+    backgroundColor: '#2A2A2A',
   },
   listImageContainer: {
     position: 'relative',

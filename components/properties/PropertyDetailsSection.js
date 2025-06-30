@@ -14,7 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import favoriteEvents from '../../utils/favoriteEvents';
 
-const PropertyDetailsSection = ({ property }) => {
+const PropertyDetailsSection = ({ property, isDark = false }) => {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [viewCount, setViewCount] = useState(0);
@@ -367,7 +367,7 @@ const PropertyDetailsSection = ({ property }) => {
   }
   
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && styles.darkContainer]}>
       {/* Status Badge */}
       <View style={styles.headerRow}>
         <View style={[
@@ -380,22 +380,22 @@ const PropertyDetailsSection = ({ property }) => {
         <View style={styles.metaInfoContainer}>
           {/* Views counter */}
           <View style={styles.viewsContainer}>
-            <Ionicons name="eye-outline" size={16} color="#666" />
-            <Text style={styles.viewsText}>{viewCount}</Text>
+            <Ionicons name="eye-outline" size={16} color={isDark ? '#AAA' : '#666'} />
+            <Text style={[styles.viewsText, isDark && styles.darkSubText]}>{viewCount}</Text>
           </View>
           
           {/* Date added */}
-          <Text style={styles.dateText}>{formatDate(property.created_at)}</Text>
+          <Text style={[styles.dateText, isDark && styles.darkSubText]}>{formatDate(property.created_at)}</Text>
         </View>
       </View>
       
       {/* Property Title */}
-      <Text style={styles.title} numberOfLines={2}>{property.title}</Text>
+      <Text style={[styles.title, isDark && styles.darkText]} numberOfLines={2}>{property.title}</Text>
       
       {/* Location (moved below title, includes village) */}
       <View style={styles.locationContainer}>
-        <Ionicons name="location-outline" size={18} color="#666" />
-        <Text style={styles.location}>
+        <Ionicons name="location-outline" size={18} color={isDark ? '#AAA' : '#666'} />
+        <Text style={[styles.location, isDark && styles.darkSubText]}>
           {property.address ? `${property.address}, ` : ''}
           {property.city || ''}
           {property.village ? `, ${property.village}` : ''}
@@ -421,8 +421,8 @@ const PropertyDetailsSection = ({ property }) => {
           <View style={styles.specItem} key={index}>
             <Ionicons name={detail.icon} size={22} color="#3366FF" />
             <View style={styles.specTextContainer}>
-              <Text style={styles.specValue}>{detail.value}</Text>
-              <Text style={styles.specLabel}>{detail.label}</Text>
+              <Text style={[styles.specValue, isDark && styles.darkText]}>{detail.value}</Text>
+              <Text style={[styles.specLabel, isDark && styles.darkSubText]}>{detail.label}</Text>
             </View>
           </View>
         ))}
@@ -443,6 +443,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  darkContainer: {
+    backgroundColor: '#2A2A2A',
   },
   loadingContainer: {
     padding: 40,
@@ -485,6 +488,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  darkSubText: {
+    color: '#CCC',
+  },
   dateText: {
     fontSize: 14,
     color: '#666',
@@ -494,6 +500,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#191d31',
     marginBottom: 8,
+  },
+  darkText: {
+    color: '#FFF',
   },
   locationContainer: {
     flexDirection: 'row',

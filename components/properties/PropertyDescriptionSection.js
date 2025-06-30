@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COMMON_FEATURES } from '../../utils/propertyTypeFields';
 
-const PropertyDescriptionSection = ({ property }) => {
+const PropertyDescriptionSection = ({ property, isDark = false }) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
   
   // Handle missing description
@@ -49,18 +49,18 @@ const PropertyDescriptionSection = ({ property }) => {
   const features = getPropertyFeatures();
   
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && styles.darkContainer]}>
       {/* Description Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Description</Text>
-        <Text style={styles.description}>{displayDescription}</Text>
+        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Description</Text>
+        <Text style={[styles.description, isDark && styles.darkSubText]}>{displayDescription}</Text>
         
         {isLongDescription && (
           <TouchableOpacity 
             onPress={() => setShowFullDescription(!showFullDescription)}
             style={styles.readMoreButton}
           >
-            <Text style={styles.readMoreText}>
+            <Text style={[styles.readMoreText, isDark && { color: '#6699FF' }]}>
               {showFullDescription ? 'Read Less' : 'Read More'}
             </Text>
           </TouchableOpacity>
@@ -70,12 +70,12 @@ const PropertyDescriptionSection = ({ property }) => {
       {/* Features Section */}
       {features.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Features</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Features</Text>
           <View style={styles.featuresContainer}>
             {features.map((feature, index) => (
               <View key={index} style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color="#3366FF" />
-                <Text style={styles.featureText}>{feature}</Text>
+                <Text style={[styles.featureText, isDark && styles.darkSubText]}>{feature}</Text>
               </View>
             ))}
           </View>
@@ -135,7 +135,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginLeft: 8,
-  }
+  },
+  // Dark mode styles
+  darkContainer: {
+    backgroundColor: '#2A2A2A',
+  },
+  darkText: {
+    color: '#FFF',
+  },
+  darkSubText: {
+    color: '#CCC',
+  },
 });
 
 export default PropertyDescriptionSection; 

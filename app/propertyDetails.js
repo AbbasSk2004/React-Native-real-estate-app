@@ -117,62 +117,101 @@ const PropertyDetailsScreen = () => {
     setShowInquiryModal(true);
   };
   
+  // Header appearance based on theme
+  const headerThemeStyles = {
+    headerStyle: {
+      backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+      height: 56, // standard material header height for vertical centering
+    },
+    contentStyle: {
+      backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+      
+    },
+    headerShadowVisible: !isDark,
+    headerTitleStyle: {
+      color: isDark ? '#FFFFFF' : '#333',
+      fontWeight: '600',
+      transform: [{ translateY: 6 }],
+    },
+    headerTitleContainerStyle: {
+      transform: [{ translateY: 6 }],
+    },
+    headerTintColor: isDark ? '#FFFFFF' : '#333',
+    headerStatusBarHeight: 0,
+  };
+  
+  const headerOptions = {
+    ...headerThemeStyles,
+    headerShown: true,
+    title: 'Property Details',
+    headerLeft: () => (
+      <TouchableOpacity onPress={() => router.back()} style={styles.shareButton}>
+        <Ionicons name="arrow-back" size={24} color={isDark ? '#FFF' : '#333'} />
+      </TouchableOpacity>
+    ),
+    headerRight: () => (
+      <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+        <Ionicons name="share-outline" size={24} color={isDark ? '#FFF' : '#333'} />
+      </TouchableOpacity>
+    ),
+  };
+  
   if (loading) {
     return (
-      <View style={[styles.loadingContainer, isDark && styles.darkContainer]}>
-        <ActivityIndicator size="large" color="#3366FF" />
-      </View>
+      <>
+        <Stack.Screen options={headerOptions} />
+        <View style={[styles.loadingContainer, isDark && styles.darkContainer]}>
+          <ActivityIndicator size="large" color="#3366FF" />
+        </View>
+      </>
     );
   }
   
   if (error) {
     return (
-      <View style={[styles.errorContainer, isDark && styles.darkContainer]}>
-        <Ionicons name="alert-circle-outline" size={60} color="#FF6B6B" />
-        <Text style={[styles.errorText, isDark && styles.darkText]}>{error}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton}
-          onPress={fetchPropertyDetails}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <>
+        <Stack.Screen options={headerOptions} />
+        <View style={[styles.errorContainer, isDark && styles.darkContainer]}>
+          <Ionicons name="alert-circle-outline" size={60} color="#FF6B6B" />
+          <Text style={[styles.errorText, isDark && styles.darkText]}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={fetchPropertyDetails}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </>
     );
   }
   
   if (!property) {
     return (
-      <View style={[styles.errorContainer, isDark && styles.darkContainer]}>
-        <Ionicons name="home-outline" size={60} color={isDark ? "#CCC" : "#666"} />
-        <Text style={[styles.errorText, isDark && styles.darkText]}>Property not found</Text>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <>
+        <Stack.Screen options={headerOptions} />
+        <View style={[styles.errorContainer, isDark && styles.darkContainer]}>
+          <Ionicons name="home-outline" size={60} color={isDark ? '#CCC' : '#666'} />
+          <Text style={[styles.errorText, isDark && styles.darkText]}>Property not found</Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </>
     );
   }
   
   return (
     <View style={[styles.container, isDark && styles.darkContainer]}>
-      <Stack.Screen 
-        options={{
-          title: 'Property Details',
-          headerRight: () => (
-            <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-              <Ionicons name="share-outline" size={24} color={isDark ? "#FFF" : "#333"} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
+      <Stack.Screen options={headerOptions} />
       
       <ScrollView 
         showsVerticalScrollIndicator={false}

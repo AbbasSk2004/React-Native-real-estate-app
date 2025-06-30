@@ -35,6 +35,7 @@ export default function Home() {
   const [recommendedProperties, setRecommendedProperties] = useState([]);
   const [recLoading, setRecLoading] = useState(true);
   const [recError, setRecError] = useState(null);
+  const [recSource, setRecSource] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -65,13 +66,22 @@ export default function Home() {
 
       if (Array.isArray(recommended)) {
         setRecommendedProperties(recommended);
+        // Check if recommendation source is available
+        if (recommended.source) {
+          setRecSource(recommended.source === 'ml' ? 'ML' : 
+                      recommended.source === 'js' ? 'JS' : 'Default');
+        } else {
+          setRecSource(null);
+        }
         setRecError(null);
       } else {
         setRecError('Failed to load recommendations');
+        setRecSource(null);
       }
     } catch (err) {
       console.error('Error loading featured properties:', err);
       setError('Error loading featured properties');
+      setRecSource(null);
     } finally {
       setIsLoading(false);
       setRecLoading(false);
@@ -161,7 +171,10 @@ export default function Home() {
   const renderRecommendationSection = () => (
     <View style={[styles.sectionContainer, isDark && styles.darkSection]}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Our Recommendation</Text>
+        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+          Our Recommendation
+          {recSource && <Text style={styles.recSourceBadge}> ({recSource})</Text>}
+        </Text>
       </View>
       
       <ScrollView 
@@ -281,7 +294,10 @@ export default function Home() {
 
   return (
     <SwipeWrapper tabIndex={0}>
-      <SafeAreaView style={[styles.safeArea, isDark && styles.darkContainer]}>
+      <SafeAreaView
+        style={[styles.safeArea, isDark && styles.darkContainer]}
+        edges={['left', 'right', 'bottom']}
+      >
         <Stack.Screen
           options={{
             headerTitle: '',
@@ -447,7 +463,7 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   recommendedCardWrapper: {
-    marginRight: 16,
+    marginRight: 0,
     width: 280,
   },
   propertyCard: {
@@ -616,5 +632,10 @@ const styles = StyleSheet.create({
   },
   darkCategoryText: {
     color: '#CCC',
+  },
+  recSourceBadge: {
+    fontSize: 12,
+    color: '#0061FF',
+    fontWeight: '400',
   },
 }); 

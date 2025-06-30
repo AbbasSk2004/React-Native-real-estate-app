@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
 
-const SimilarPropertiesSection = ({ propertyId, propertyType }) => {
+const SimilarPropertiesSection = ({ propertyId, propertyType, isDark = false }) => {
   const [loading, setLoading] = useState(true);
   const [properties, setProperties] = useState([]);
   const [error, setError] = useState(null);
@@ -74,7 +74,7 @@ const SimilarPropertiesSection = ({ propertyId, propertyType }) => {
   
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, isDark && styles.darkContainer]}>
         <ActivityIndicator size="large" color="#3366FF" />
       </View>
     );
@@ -82,9 +82,9 @@ const SimilarPropertiesSection = ({ propertyId, propertyType }) => {
   
   if (error) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={[styles.errorContainer, isDark && styles.darkContainer]}>
         <Ionicons name="alert-circle-outline" size={30} color="#FF6B6B" />
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[styles.errorText, isDark && styles.darkSubText]}>{error}</Text>
         <TouchableOpacity 
           style={styles.retryButton}
           onPress={handleRetry}
@@ -105,8 +105,8 @@ const SimilarPropertiesSection = ({ propertyId, propertyType }) => {
   }
   
   return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Similar Properties</Text>
+    <View style={[styles.container, isDark && styles.darkContainer]}>
+      <Text style={[styles.sectionTitle, isDark && styles.darkText]}>Similar Properties</Text>
       
       <ScrollView 
         horizontal 
@@ -121,6 +121,7 @@ const SimilarPropertiesSection = ({ propertyId, propertyType }) => {
               property={property} 
               onPress={() => handlePropertyPress(property.id)}
               featuredStyle={true}
+              isDark={isDark}
             />
           </View>
         ))}
@@ -210,7 +211,16 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginVertical: 20,
-  }
+  },
+  darkContainer: {
+    backgroundColor: '#2A2A2A',
+  },
+  darkText: {
+    color: '#FFF',
+  },
+  darkSubText: {
+    color: '#CCC',
+  },
 });
 
 export default SimilarPropertiesSection; 

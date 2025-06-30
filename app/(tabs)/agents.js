@@ -126,10 +126,7 @@ export default function Agents() {
     
     return (
       <View style={[styles.agentCard, isDark && styles.darkAgentCard]}>
-        <TouchableOpacity
-          onPress={() => handleAgentPress(item.id)}
-          style={styles.agentCardContent}
-        >
+        <View style={styles.agentCardContent}>
           <Image 
             source={{ uri: profileImage }} 
             style={styles.agentImage}
@@ -153,7 +150,7 @@ export default function Agents() {
               </View>
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
 
         <View style={styles.socialContainer}>
           {item.phone && (
@@ -249,7 +246,10 @@ export default function Agents() {
 
   return (
     <SwipeWrapper tabIndex={2}>
-      <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+      <SafeAreaView
+        style={[styles.container, isDark && styles.darkContainer]}
+        edges={['left', 'right', 'bottom']}
+      >
         <Stack.Screen
           options={{
             headerTitle: 'Our Agents',
@@ -262,6 +262,13 @@ export default function Agents() {
                 {unreadCount > 0 && <View style={styles.notificationBadge} />}
               </TouchableOpacity>
             ),
+            headerStyle: {
+              backgroundColor: isDark ? '#1A1A1A' : '#F5F5F5',
+            },
+            headerShadowVisible: false,
+            headerTitleStyle: {
+              color: isDark ? '#FFF' : '#333',
+            },
           }}
         />
         

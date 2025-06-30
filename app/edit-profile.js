@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import profilesService from '../services/profiles';
 import { useAuth } from '../context/AuthContext';
@@ -15,7 +15,8 @@ const DEFAULT_AVATAR = 'https://www.gravatar.com/avatar/000000000000000000000000
 export default function EditProfile() {
   const router = useRouter();
   const { user, updateUserState } = useAuth();
-  const { isDark } = useTheme();
+  const { isDark, getThemeColors } = useTheme();
+  const colors = getThemeColors();
   const [profileImage, setProfileImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -218,7 +219,20 @@ export default function EditProfile() {
   if (isLoadingProfile) {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-        <Stack.Screen options={{ title: 'Edit Profile' }} />
+        <Stack.Screen 
+          options={{ 
+            headerShown: true,
+            title: 'Edit Profile',
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.text,
+            headerShadowVisible: !isDark,
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color={colors.text} />
+              </TouchableOpacity>
+            ),
+          }} 
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0061FF" />
           <Text style={[styles.loadingText, isDark && styles.darkText]}>Loading profile...</Text>
@@ -229,9 +243,31 @@ export default function EditProfile() {
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
-      <Stack.Screen options={{ title: 'Edit Profile' }} />
+      <Stack.Screen 
+        options={{ 
+          headerShown: true,
+          title: 'Edit Profile',
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerShadowVisible: !isDark,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ),
+        }} 
+      />
       
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContainer}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Profile Image */}
         <View style={styles.imageContainer}>
           <Image 
@@ -309,6 +345,7 @@ export default function EditProfile() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -426,5 +463,8 @@ const styles = {
     color: '#0061FF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  backButton: {
+    marginLeft: 16,
   },
 }; 

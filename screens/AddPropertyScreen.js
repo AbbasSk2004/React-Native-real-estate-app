@@ -21,11 +21,23 @@ import { propertyService } from '../services/propertyService';
 import { PROPERTY_TYPES } from '../utils/propertyTypes';
 import { PROPERTY_TYPE_FIELDS, COMMON_FEATURES, lebanonCities, lebanonVillages } from '../utils/propertyTypeFields';
 import { useToast } from '../hooks/useToast';
+import { useTheme } from '../context/ThemeContext';
+
+// Ensure placeholder text is visible in release builds
+import { TextInput as RNTextInput } from 'react-native';
+if (RNTextInput && RNTextInput.defaultProps == null) {
+  RNTextInput.defaultProps = {};
+}
+if (RNTextInput) {
+  RNTextInput.defaultProps.placeholderTextColor = '#888888';
+}
 
 const AddPropertyScreen = () => {
   const router = useRouter();
   const toast = useToast();
   const { user, isAuthenticated } = useAuth();
+  const { getThemeColors, isDarkMode } = useTheme();
+  const colors = getThemeColors();
   const currentYear = new Date().getFullYear();
 
   // Form state
@@ -410,22 +422,35 @@ const AddPropertyScreen = () => {
     }
   };
 
+  // Dynamic styles helpers
+  const inputDynamicStyle = {
+    borderColor: colors.border,
+    color: colors.text,
+    backgroundColor: colors.surface
+  };
+  const pickerDynamicStyle = {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.text
+  };
+
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView style={styles.scrollView}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Add New Property</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Add New Property</Text>
 
           {/* Basic Information */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Basic Information</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, inputDynamicStyle]}
               placeholder="Property Title"
+              placeholderTextColor={colors.textMuted}
               value={form.propertyTitle}
               onChangeText={(value) => handleInputChange('propertyTitle', value)}
             />
@@ -433,7 +458,7 @@ const AddPropertyScreen = () => {
             <Picker
               selectedValue={form.propertyType}
               onValueChange={(value) => handleInputChange('propertyType', value)}
-              style={styles.picker}
+              style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
             >
               <Picker.Item label="Select Property Type" value="" />
               {PROPERTY_TYPES.map(type => (
@@ -444,15 +469,16 @@ const AddPropertyScreen = () => {
             <Picker
               selectedValue={form.status}
               onValueChange={(value) => handleInputChange('status', value)}
-              style={styles.picker}
+              style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
             >
               <Picker.Item label="For Sale" value="For Sale" />
               <Picker.Item label="For Rent" value="For Rent" />
             </Picker>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, inputDynamicStyle]}
               placeholder="Price (USD)"
+              placeholderTextColor={colors.textMuted}
               value={form.price}
               onChangeText={handlePriceChange}
               keyboardType="numeric"
@@ -461,12 +487,12 @@ const AddPropertyScreen = () => {
 
           {/* Location */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Location</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Location</Text>
 
             <Picker
               selectedValue={form.governorate}
               onValueChange={handleGovernorateChange}
-              style={styles.picker}
+              style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
             >
               <Picker.Item label="Select Governorate" value="" />
               {Object.keys(lebanonCities).map(gov => (
@@ -477,7 +503,7 @@ const AddPropertyScreen = () => {
             <Picker
               selectedValue={form.city}
               onValueChange={handleCityChange}
-              style={styles.picker}
+              style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
               enabled={!cityDisabled}
             >
               <Picker.Item label="Select City" value="" />
@@ -489,7 +515,7 @@ const AddPropertyScreen = () => {
             <Picker
               selectedValue={form.village}
               onValueChange={(value) => handleInputChange('village', value)}
-              style={styles.picker}
+              style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
               enabled={!villageDisabled}
             >
               <Picker.Item label="Select Village" value="" />
@@ -499,16 +525,18 @@ const AddPropertyScreen = () => {
             </Picker>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, inputDynamicStyle]}
               placeholder="Detailed Address"
+              placeholderTextColor={colors.textMuted}
               value={form.address}
               onChangeText={(value) => handleInputChange('address', value)}
               multiline
             />
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, inputDynamicStyle]}
               placeholder="Location URL (Google Maps)"
+              placeholderTextColor={colors.textMuted}
               value={form.location_url}
               onChangeText={(value) => handleInputChange('location_url', value)}
             />
@@ -516,11 +544,12 @@ const AddPropertyScreen = () => {
 
           {/* Property Details */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Property Details</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Property Details</Text>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, inputDynamicStyle]}
               placeholder="Area (m²)"
+              placeholderTextColor={colors.textMuted}
               value={form.area}
               onChangeText={(value) => handleInputChange('area', value.replace(/[^0-9]/g, ''))}
               keyboardType="numeric"
@@ -528,8 +557,9 @@ const AddPropertyScreen = () => {
 
             {typeConfig.showStandard.bedrooms && (
               <TextInput
-                style={styles.input}
+                style={[styles.input, inputDynamicStyle]}
                 placeholder="Number of Bedrooms"
+                placeholderTextColor={colors.textMuted}
                 value={form.bedrooms}
                 onChangeText={(value) => handleInputChange('bedrooms', value.replace(/[^0-9]/g, ''))}
                 keyboardType="numeric"
@@ -538,8 +568,9 @@ const AddPropertyScreen = () => {
 
             {typeConfig.showStandard.bathrooms && (
               <TextInput
-                style={styles.input}
+                style={[styles.input, inputDynamicStyle]}
                 placeholder="Number of Bathrooms"
+                placeholderTextColor={colors.textMuted}
                 value={form.bathrooms}
                 onChangeText={(value) => handleInputChange('bathrooms', value.replace(/[^0-9]/g, ''))}
                 keyboardType="numeric"
@@ -548,8 +579,9 @@ const AddPropertyScreen = () => {
 
             {typeConfig.showStandard.parkingSpaces && (
               <TextInput
-                style={styles.input}
+                style={[styles.input, inputDynamicStyle]}
                 placeholder="Number of Parking Spaces"
+                placeholderTextColor={colors.textMuted}
                 value={form.parkingSpaces}
                 onChangeText={(value) => handleInputChange('parkingSpaces', value.replace(/[^0-9]/g, ''))}
                 keyboardType="numeric"
@@ -558,8 +590,9 @@ const AddPropertyScreen = () => {
 
             {typeConfig.showStandard.livingrooms && (
               <TextInput
-                style={styles.input}
+                style={[styles.input, inputDynamicStyle]}
                 placeholder="Number of Living Rooms"
+                placeholderTextColor={colors.textMuted}
                 value={form.livingrooms}
                 onChangeText={(value) => handleInputChange('livingrooms', value.replace(/[^0-9]/g, ''))}
                 keyboardType="numeric"
@@ -567,20 +600,23 @@ const AddPropertyScreen = () => {
             )}
 
             {typeConfig.showStandard.yearBuilt && (
-              <TextInput
-                style={styles.input}
-                placeholder="Year Built"
-                value={form.yearBuilt}
-                onChangeText={(value) => handleInputChange('yearBuilt', value.replace(/[^0-9]/g, ''))}
-                keyboardType="numeric"
-              />
+              <Picker
+                selectedValue={form.yearBuilt}
+                onValueChange={(value) => handleInputChange('yearBuilt', value)}
+                style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
+              >
+                <Picker.Item label="Select Year Built" value="" />
+                {Array.from({ length: currentYear - 1799 }, (_, i) => currentYear - i).map(year => (
+                  <Picker.Item key={year} label={`${year}`} value={`${year}`} />
+                ))}
+              </Picker>
             )}
 
             {typeConfig.showStandard.furnishingStatus && (
               <Picker
                 selectedValue={form.furnishingStatus}
                 onValueChange={(value) => handleInputChange('furnishingStatus', value)}
-                style={styles.picker}
+                style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
               >
                 <Picker.Item label="Select Furnishing Status" value="" />
                 <Picker.Item label="Furnished" value="Furnished" />
@@ -596,7 +632,7 @@ const AddPropertyScreen = () => {
                   <Picker
                     selectedValue={extraFields[field.name] || ''}
                     onValueChange={(value) => handleExtraFieldChange(field.name, value)}
-                    style={styles.picker}
+                    style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
                   >
                     <Picker.Item label="Select Office Layout" value="" />
                     <Picker.Item label="Open Plan" value="Open Plan" />
@@ -609,7 +645,7 @@ const AddPropertyScreen = () => {
                   <Picker
                     selectedValue={extraFields[field.name] || ''}
                     onValueChange={(value) => handleExtraFieldChange(field.name, value)}
-                    style={styles.picker}
+                    style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
                   >
                     <Picker.Item label="Select Land Type" value="" />
                     <Picker.Item label="Residential" value="Residential" />
@@ -623,7 +659,7 @@ const AddPropertyScreen = () => {
                   <Picker
                     selectedValue={extraFields[field.name] || ''}
                     onValueChange={(value) => handleExtraFieldChange(field.name, value)}
-                    style={styles.picker}
+                    style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
                   >
                     <Picker.Item label="Select Zoning" value="" />
                     <Picker.Item label="Residential" value="Residential" />
@@ -637,7 +673,7 @@ const AddPropertyScreen = () => {
                   <Picker
                     selectedValue={extraFields[field.name] || ''}
                     onValueChange={(value) => handleExtraFieldChange(field.name, value)}
-                    style={styles.picker}
+                    style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
                   >
                     <Picker.Item label="Select Water Source" value="" />
                     <Picker.Item label="Well" value="Well" />
@@ -650,7 +686,7 @@ const AddPropertyScreen = () => {
                   <Picker
                     selectedValue={extraFields[field.name] || ''}
                     onValueChange={(value) => handleExtraFieldChange(field.name, value)}
-                    style={styles.picker}
+                    style={[styles.picker, styles.pickerText, pickerDynamicStyle]}
                   >
                     <Picker.Item label="Select Crop Type" value="" />
                     <Picker.Item label="Olives" value="Olives" />
@@ -664,7 +700,7 @@ const AddPropertyScreen = () => {
                   <Picker
                     selectedValue={extraFields[field.name] || ''}
                     onValueChange={(value) => handleExtraFieldChange(field.name, value)}
-                    style={styles.picker}
+                    style={[styles.picker, styles.pickerText]}
                   >
                     <Picker.Item label={field.label} value="" />
                     {field.options && field.options.map(option => (
@@ -673,8 +709,9 @@ const AddPropertyScreen = () => {
                   </Picker>
                 ) : (
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, inputDynamicStyle]}
                     placeholder={field.label}
+                    placeholderTextColor={colors.textMuted}
                     value={extraFields[field.name] || ''}
                     onChangeText={(value) => handleExtraFieldChange(field.name, value)}
                     keyboardType={field.type === 'number' ? 'numeric' : 'default'}
@@ -686,7 +723,7 @@ const AddPropertyScreen = () => {
 
           {/* Features */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Features</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Features</Text>
             <View style={styles.featuresGrid}>
               {typeConfig.features.map(feature => (
                 <TouchableOpacity
@@ -704,10 +741,11 @@ const AddPropertyScreen = () => {
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, inputDynamicStyle]}
               placeholder="Property Description"
+              placeholderTextColor={colors.textMuted}
               value={form.description}
               onChangeText={(value) => handleInputChange('description', value)}
               multiline
@@ -717,7 +755,7 @@ const AddPropertyScreen = () => {
 
           {/* Images */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Images</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Images</Text>
             
             <TouchableOpacity 
               style={styles.imagePickerButton}
@@ -835,6 +873,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
+  },
+  pickerText: {
+    color: '#000',
   },
   featuresGrid: {
     flexDirection: 'row',

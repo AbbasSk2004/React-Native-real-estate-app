@@ -98,21 +98,20 @@ export const storeUserPreferences = (filters) => {
 };
 
 // Store viewed property in local storage
-export const storeViewedProperty = (property) => {
+export const storeViewedProperty = async (property) => {
   try {
     if (!property || !property.id) return;
-    
+
+    // ------------------------------------------------------------
+    // 1. Update local (or in-memory) cache so we can make instant
+    //    client-side recommendations even before the server reply.
+    // ------------------------------------------------------------
     const viewedProperties = JSON.parse(safeStorage.getItem(VIEWED_PROPERTIES_KEY) || '[]');
-    
-    // Check if property is already in the list
+
+    // Remove existing entry so the newest occurrence is always first
     const existingIndex = viewedProperties.findIndex(p => p.id === property.id);
-    
-    // If exists, remove it to add it to the front (most recent)
-    if (existingIndex !== -1) {
-      viewedProperties.splice(existingIndex, 1);
-    }
-    
-    // Add property to front with timestamp
+    if (existingIndex !== -1) viewedProperties.splice(existingIndex, 1);
+
     const propertyWithTimestamp = {
       id: property.id,
       property_type: property.property_type,
@@ -124,10 +123,21 @@ export const storeViewedProperty = (property) => {
       area: property.area,
       timestamp: Date.now()
     };
-    
-    // Keep only the most recent views
+
     const updatedViews = [propertyWithTimestamp, ...viewedProperties].slice(0, MAX_STORED_VIEWS);
     safeStorage.setItem(VIEWED_PROPERTIES_KEY, JSON.stringify(updatedViews));
+
+    // ------------------------------------------------------------
+    // 2. Notify the backend so the Python ML engine can use the
+    //    centralized `property_views` table. We send the request in
+    //    the background; failures are logged but not surfaced.
+    // ------------------------------------------------------------
+    try {
+      await api.post(`/property-views/${property.id}`);
+    } catch (err) {
+      // Fail silently; the local cache is still available for JS fallback
+      console.warn('Failed to record property view on server:', err?.message || err);
+    }
   } catch (error) {
     console.error('Error storing viewed property:', error);
   }
@@ -150,7 +160,10 @@ const getDefaultRecommendations = async (limit = 5) => {
   try {
     const response = await api.get('/properties/recommended');
     const properties = response?.data?.data || [];
-    return properties.slice(0, limit);
+    // Add source to the data
+    const recommendations = properties.slice(0, limit);
+    recommendations.source = 'default';
+    return recommendations;
   } catch (error) {
     console.error('Error getting recommended properties:', error);
     return [];
@@ -265,10 +278,14 @@ const getLocalRecommendations = async (limit = 5) => {
     });
     
     // Sort by score and return top recommendations
-    return propertiesWithScores
+    const recommendations = propertiesWithScores
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map(item => item.property);
+    
+    // Add source to the data
+    recommendations.source = 'js';
+    return recommendations;
   } catch (error) {
     console.error('Error in getLocalRecommendations:', error);
     return getDefaultRecommendations(limit);
@@ -280,6 +297,29 @@ const getPersonalizedRecommendations = async (userId, limit = 5) => {
   try {
     if (!userId) {
       return getLocalRecommendations(limit);
+    }
+
+    // Try to get ML-based recommendations from the server first
+    try {
+      const mlResponse = await api.get('/recommendation/recommended', {
+        params: { user_id: userId, limit },
+        validateStatus: (status) => status === 200 || status === 401 || status === 500
+      });
+
+      // If we got successful ML recommendations, use them
+      if (mlResponse.status === 200 && mlResponse?.data?.success && 
+          Array.isArray(mlResponse?.data?.data) && mlResponse?.data?.data.length > 0) {
+        console.log('Using ML-based recommendations from server');
+        // Add source to the data
+        const recommendations = mlResponse.data.data;
+        recommendations.source = mlResponse.data.source || 'ml';
+        return recommendations;
+      }
+      
+      console.log('ML recommendations unavailable, falling back to local algorithm');
+    } catch (mlError) {
+      console.error('Error getting ML recommendations:', mlError);
+      console.log('Falling back to local recommendation algorithm');
     }
 
     // Get user's recently viewed properties from server
@@ -326,10 +366,14 @@ const getPersonalizedRecommendations = async (userId, limit = 5) => {
         });
 
       // Sort by score and return top recommendations
-      return propertyScores
+      const recommendations = propertyScores
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
         .map(item => item.property);
+      
+      // Add source to the data
+      recommendations.source = 'js';
+      return recommendations;
 
     } catch (error) {
       console.error('Error getting personalized recommendations:', error);

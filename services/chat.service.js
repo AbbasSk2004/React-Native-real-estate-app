@@ -72,14 +72,14 @@ export const chatService = {
     return { user: userData, provider: 'backend' };
   },
 
-  async fetchConversations(retryCount = 0) {
+  async fetchConversations(retryCount = 0, force = false) {
     try {
       const { user } = await this.checkAuth();
       if (!user) return [];
 
       // Check cache first
       const cachedData = conversationCache.get('conversations');
-      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
+      if (!force && cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
         return cachedData.conversations;
       }
 
@@ -107,7 +107,7 @@ export const chatService = {
       const { shouldRetry, retryCount: newRetryCount } = handleError(error, retryCount);
       if (shouldRetry && newRetryCount <= MAX_RETRIES) {
         await sleep(RETRY_DELAY * newRetryCount);
-        return this.fetchConversations(newRetryCount);
+        return this.fetchConversations(newRetryCount, force);
       }
       throw error;
     }
@@ -216,15 +216,23 @@ export const chatService = {
         // Update conversation cache
         const conversationsData = conversationCache.get('conversations');
         if (conversationsData?.conversations) {
-          const updatedConversations = conversationsData.conversations.map(conv => {
+          const updatedConversationsUnsorted = conversationsData.conversations.map(conv => {
             if (conv.id === conversationId) {
               return {
                 ...conv,
                 messages: [...(conv.messages || []), newMessage],
+                last_message: newMessage,
                 updated_at: new Date().toISOString()
               };
             }
             return conv;
+          });
+
+          // Move the updated conversation to the top (sort by updated_at desc)
+          const updatedConversations = updatedConversationsUnsorted.sort((a, b) => {
+            const dateA = new Date(a.updated_at).getTime();
+            const dateB = new Date(b.updated_at).getTime();
+            return dateB - dateA;
           });
 
           conversationCache.set('conversations', {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { runOnJS } from 'react-native-reanimated';
@@ -25,15 +25,31 @@ export default function SwipeWrapper({ children, tabIndex }) {
     router.replace(TAB_ROUTES[index]);
   };
 
-  // Pan gesture that triggers when the user swipes far enough (≥ 50 px).
+  // Only allow swipe-navigation when the gesture starts close to either edge
+  const { width: SCREEN_WIDTH } = Dimensions.get('window');
+  const EDGE_THRESHOLD = 32; // px from either side of the screen
+
+  let gestureStartX = 0;
+
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15]) // Engage only for horizontal swipes
+    .activeOffsetX([-15, 15]) // horizontal movement only
+    .onBegin((e) => {
+      gestureStartX = e.x; // save where the gesture began
+    })
     .onEnd((event) => {
       const { translationX } = event;
+
+      // Gesture must originate near either edge to avoid conflicts
+      const startedNearEdge =
+        gestureStartX <= EDGE_THRESHOLD ||
+        gestureStartX >= SCREEN_WIDTH - EDGE_THRESHOLD;
+
+      if (!startedNearEdge) return;
 
       // Swipe left ➜ next tab
       if (translationX < -50 && tabIndex < TAB_ROUTES.length - 1) {
         runOnJS(navigateToIndex)(tabIndex + 1);
+        return;
       }
 
       // Swipe right ➜ previous tab

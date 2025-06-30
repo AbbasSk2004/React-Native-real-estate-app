@@ -4,9 +4,15 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "android:prod": "cross-env EXPO_PUBLIC_ENV=production expo run:android",
+    "ios:prod": "cross-env EXPO_PUBLIC_ENV=production expo run:ios",
+    "build:android": "cross-env EXPO_PUBLIC_ENV=production eas build -p android",
+    "build:ios": "cross-env EXPO_PUBLIC_ENV=production eas build -p ios",
+    "prebuild:android": "npx expo prebuild -p android --clean",
+    "prebuild:ios": "npx expo prebuild -p ios --clean"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.1.2",
@@ -15,6 +21,7 @@
     "@react-navigation/native": "^7.1.6",
     "axios": "^1.10.0",
     "expo": "~53.0.12",
+    "expo-application": "^6.1.4",
     "expo-blur": "^14.1.5",
     "expo-constants": "~17.1.6",
     "expo-device": "~7.1.4",
@@ -51,6 +58,7 @@
     "@babel/plugin-transform-runtime": "^7.27.4",
     "@react-native-community/cli": "^18.0.0",
     "babel-plugin-module-resolver": "^5.0.2",
+    "cross-env": "^7.0.3",
     "react-native-dotenv": "^3.4.11"
   },
   "private": true,

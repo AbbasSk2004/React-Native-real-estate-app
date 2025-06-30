@@ -1,19 +1,16 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: [
-      ["babel-preset-expo", { jsxImportSource: "nativewind" }],
-      "nativewind/babel",
-    ],
+    presets: ['babel-preset-expo'],
     plugins: [
-      ["module:react-native-dotenv", {
+      'expo-router/babel',
+      ['module:react-native-dotenv', {
         moduleName: '@env',
-        path: '.env',
+        path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
         blacklist: null,
         whitelist: null,
-        safe: true,
-        allowUndefined: false,
-        verbose: false
+        safe: false,
+        allowUndefined: true
       }]
     ],
   };

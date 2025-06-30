@@ -2,12 +2,13 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useAuth } from './AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 import notificationService from '../services/notificationService';
-import { NOTIFICATION_TYPES } from '../utils/notificationUtils';
+import { NOTIFICATION_TYPES, showBrowserNotification, playNotificationSound } from '../utils/notificationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import websocketService from '../services/websocket';
 
 const NotificationContext = createContext();
 
@@ -15,7 +16,6 @@ const NotificationContext = createContext();
 const isWeb = Platform.OS === 'web';
 
 // Storage keys
-const SETTINGS_STORAGE_KEY = 'notification_settings';
 const PERMISSION_REQUESTED_KEY = 'notification_permission_requested';
 
 // Configure notification handler for when app is in foreground
@@ -29,12 +29,13 @@ Notifications.setNotificationHandler({
 
 export const NotificationProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
-  const [settings, setSettings] = useState(null);
-  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
-  const [settingsError, setSettingsError] = useState(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
   const [expoPushToken, setExpoPushToken] = useState('');
   const [permissionStatus, setPermissionStatus] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   // Request notification permissions
   const requestNotificationPermissions = useCallback(async () => {
@@ -103,175 +104,88 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [isAuthenticated]);
 
-  // Load local settings from storage when component mounts
+  // Request permissions on first load if not on web
   useEffect(() => {
-    const loadLocalSettings = async () => {
-      try {
-        let storedSettings = null;
-        
-        if (isWeb && typeof window !== 'undefined' && window.localStorage) {
-          const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
-          if (stored) {
-            storedSettings = JSON.parse(stored);
-          }
-        } else {
-          const stored = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
-          if (stored) {
-            storedSettings = JSON.parse(stored);
-          }
-        }
-        
-        if (storedSettings) {
-          setSettings(storedSettings);
-        }
-        
-        // Request permissions on first load if not on web
-        if (!isWeb) {
-          requestNotificationPermissions();
-        }
-      } catch (error) {
-        console.error('Error loading notification settings from storage:', error);
-      }
-    };
-    
-    loadLocalSettings();
+    if (!isWeb) {
+      requestNotificationPermissions();
+    }
   }, [requestNotificationPermissions]);
-  
-  // Save settings to storage whenever they change
-  useEffect(() => {
-    const saveSettings = async () => {
-      if (!settings) return;
-      
-      try {
-        const serialized = JSON.stringify(settings);
-        
-        if (isWeb && typeof window !== 'undefined' && window.localStorage) {
-          localStorage.setItem(SETTINGS_STORAGE_KEY, serialized);
-        } else {
-          await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, serialized);
-        }
-      } catch (error) {
-        console.error('Error saving notification settings to storage:', error);
-      }
-    };
-    
-    saveSettings();
-  }, [settings]);
   
   // Use the useNotifications hook for notification data and operations
   const {
-    notifications,
-    unreadCount,
-    loading,
-    error,
-    fetchNotifications,
+    loading: notificationsLoading,
+    error: notificationsError,
+    fetchNotifications: notificationsFetch,
     markAsRead,
     markAllAsRead,
     bulkMarkAsRead,
     deleteNotification,
     clearAllNotifications
   } = useNotifications({
-    enableBrowserNotifications: settings?.push_notifications || false,
-    enableSound: settings?.sound_notifications || false,
+    enableBrowserNotifications: true,
+    enableSound: true,
     autoMarkRead: false
   });
 
   // Add a new function to force refresh notifications and unreadCount
-  const refreshNotifications = useCallback(async () => {
-    // Trigger a refresh of the notification data
-    await fetchNotifications();
-    // Update the last refresh time to trigger dependencies
-    setLastRefreshTime(Date.now());
-  }, [fetchNotifications]);
+  const fetchNotifications = useCallback(async () => {
+    try {
+      // Show loading state
+      setLoading(true);
+      setError(null);
+      
+      // Fetch notifications from the service
+      const response = await notificationService.getAllNotifications();
+      
+      if (response.error) {
+        // Only set error if it's not a network error with cached data
+        if (!(response.type === 'network_error' && response.data?.notifications?.length > 0)) {
+          setError(response.error);
+        }
+      }
+      
+      const newNotifications = response.data.notifications || [];
+      setNotifications(newNotifications);
+      setUnreadCount(newNotifications.filter(n => !n.read).length);
+    } catch (err) {
+      // Only show errors if they're not network errors, which are handled by service
+      if (!err.message || !err.message.includes('Network')) {
+        setError(err.message || 'Failed to fetch notifications');
+        console.error('Error fetching notifications:', err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Enhanced markAsRead that ensures unreadCount is updated
   const enhancedMarkAsRead = useCallback(async (notificationId) => {
     await markAsRead(notificationId);
     // Refresh to ensure unreadCount is updated
-    await refreshNotifications();
-  }, [markAsRead, refreshNotifications]);
+    await fetchNotifications();
+  }, [markAsRead, fetchNotifications]);
 
   // Enhanced markAllAsRead that ensures unreadCount is updated
   const enhancedMarkAllAsRead = useCallback(async () => {
     await markAllAsRead();
     // Refresh to ensure unreadCount is updated
-    await refreshNotifications();
-  }, [markAllAsRead, refreshNotifications]);
+    await fetchNotifications();
+  }, [markAllAsRead, fetchNotifications]);
 
   // Enhanced bulkMarkAsRead that ensures unreadCount is updated
   const enhancedBulkMarkAsRead = useCallback(async (notificationIds) => {
     await bulkMarkAsRead(notificationIds);
     // Refresh to ensure unreadCount is updated
-    await refreshNotifications();
-  }, [bulkMarkAsRead, refreshNotifications]);
+    await fetchNotifications();
+  }, [bulkMarkAsRead, fetchNotifications]);
 
-  // Load notification settings on auth change
+  // Initial fetch of notifications when component mounts
   useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchSettings();
+    if (isAuthenticated && user?.id) {
+      console.log('[NotificationContext] Initial fetch of notifications');
+      fetchNotifications();
     }
-  }, [isAuthenticated, user]);
-
-  // Function to fetch notification settings
-  const fetchSettings = useCallback(async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      setIsLoadingSettings(true);
-      setSettingsError(null);
-      const { data, error } = await notificationService.getSettings();
-      
-      if (error) throw new Error(error);
-      
-      if (data && data.data) {
-        setSettings(data.data);
-      } else {
-        // If no settings exist, use defaults
-        setSettings({
-          email_notifications: true,
-          push_notifications: true,
-          sms_notifications: false,
-          chat_messages: true,
-          property_updates: true,
-          system_updates: true,
-          marketing_emails: false,
-          weekly_digest: true,
-          instant_notifications: true,
-          quiet_hours_enabled: false,
-          quiet_hours_start: '22:00',
-          quiet_hours_end: '08:00'
-        });
-      }
-    } catch (err) {
-      setSettingsError(err.message || 'Failed to load notification settings');
-      console.error('Error fetching notification settings:', err);
-    } finally {
-      setIsLoadingSettings(false);
-    }
-  }, [isAuthenticated]);
-
-  // Update notification settings
-  const updateSettings = useCallback(async (newSettings) => {
-    if (!isAuthenticated) {
-      throw new Error('You must be logged in to update notification settings');
-    }
-    
-    try {
-      const { data, error } = await notificationService.updateSettings(newSettings);
-      
-      if (error) throw new Error(error);
-      
-      if (data) {
-        setSettings(data);
-        return { success: true };
-      }
-      
-      throw new Error('Failed to update notification settings');
-    } catch (err) {
-      console.error('Error updating notification settings:', err);
-      throw err;
-    }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id, fetchNotifications]);
 
   // Group notifications by date
   const notificationsByDate = notifications.reduce((groups, notification) => {
@@ -297,20 +211,101 @@ export const NotificationProvider = ({ children }) => {
     ).length;
   }, [notifications]);
 
-  // Refresh notifications on an interval to ensure badge counts stay up-to-date
+  // WebSocket integration: listen for real-time notification events
   useEffect(() => {
-    if (isAuthenticated) {
-      // Initial fetch
-      refreshNotifications();
+    if (!isAuthenticated || !user?.id) return;
+
+    // Ensure a single socket connection
+    websocketService.connect();
+    
+    console.log('[NotificationContext] Setting up WebSocket listeners');
+
+    // --- Handlers for server-emitted events ---
+    const handleCreated = (data) => {
+      console.log('[NotificationContext] Received event data:', data);
       
-      // Set up interval to refresh
-      const intervalId = setInterval(() => {
-        refreshNotifications();
-      }, 60000); // Every minute
+      // Handle notification_created event
+      if (data.notification) {
+        const notification = data.notification;
+        console.log('[NotificationContext] Received notification:', notification);
+        
+        setNotifications(prev => {
+          // Avoid duplicates
+          if (prev.some(n => n.id === notification.id)) return prev;
+          const updated = [notification, ...prev];
+          if (!notification.read) {
+            setUnreadCount(updated.filter(n => !n.read).length);
+          }
+          // Optional UX: play sound / browser notification when app is in background (web only)
+          if (typeof document !== 'undefined' && document.hidden) {
+            showBrowserNotification(notification.title, notification.message);
+            playNotificationSound();
+          }
+          return updated;
+        });
+      }
+      // Handle new_message event which might not have notification property
+      else if (data.content && data.conversation_id) {
+        console.log('[NotificationContext] Received message:', data);
+        // Fetch notifications to ensure we have the latest
+        fetchNotifications();
+      }
+    };
+
+    const handleUpdated = ({ notification }) => {
+      if (!notification) return;
       
-      return () => clearInterval(intervalId);
-    }
-  }, [isAuthenticated, refreshNotifications]);
+      console.log('[NotificationContext] Updated notification:', notification);
+      
+      setNotifications(prev => {
+        const updated = prev.map(n => (n.id === notification.id ? notification : n));
+        setUnreadCount(updated.filter(n => !n.read).length);
+        return updated;
+      });
+    };
+
+    const handleDeleted = ({ id }) => {
+      if (!id) return;
+      
+      console.log('[NotificationContext] Deleted notification:', id);
+      
+      setNotifications(prev => {
+        const updated = prev.filter(n => n.id !== id);
+        setUnreadCount(updated.filter(n => !n.read).length);
+        return updated;
+      });
+    };
+
+    const handleConnection = ({ connected }) => {
+      console.log('[NotificationContext] WebSocket connection status:', connected);
+      
+      if (connected) {
+        // On reconnect, refresh to ensure we have the latest data
+        fetchNotifications();
+      }
+    };
+
+    // Subscribe to events and capture unsubscribe functions
+    const unsubCreate = websocketService.subscribe('notification_created', handleCreated);
+    const unsubUpdate = websocketService.subscribe('notification_updated', handleUpdated);
+    const unsubDelete = websocketService.subscribe('notification_deleted', handleDeleted);
+    const unsubConn   = websocketService.subscribe('connection', handleConnection);
+    
+    // Force a reconnect when this effect runs to ensure we have a fresh connection
+    const reconnectTimeout = setTimeout(() => {
+      websocketService.reconnect();
+    }, 300);
+
+    // Cleanup on unmount / auth change
+    return () => {
+      console.log('[NotificationContext] Cleaning up WebSocket listeners');
+      clearTimeout(reconnectTimeout);
+      unsubCreate();
+      unsubUpdate();
+      unsubDelete();
+      unsubConn();
+    };
+  }, [isAuthenticated, user?.id, fetchNotifications]);
 
   const value = {
     notifications,
@@ -318,18 +313,13 @@ export const NotificationProvider = ({ children }) => {
     unreadCount,
     loading,
     error,
-    settings,
-    isLoadingSettings,
-    settingsError,
     NOTIFICATION_TYPES,
-    fetchNotifications: refreshNotifications, // Replace with enhanced version
-    markAsRead: enhancedMarkAsRead, // Replace with enhanced version
-    markAllAsRead: enhancedMarkAllAsRead, // Replace with enhanced version
-    bulkMarkAsRead: enhancedBulkMarkAsRead, // Replace with enhanced version
+    fetchNotifications,
+    markAsRead: enhancedMarkAsRead,
+    markAllAsRead: enhancedMarkAllAsRead,
+    bulkMarkAsRead: enhancedBulkMarkAsRead,
     deleteNotification,
     clearAllNotifications,
-    fetchSettings,
-    updateSettings,
     getNotificationsByType,
     getUnreadCountByType,
     lastRefreshTime,

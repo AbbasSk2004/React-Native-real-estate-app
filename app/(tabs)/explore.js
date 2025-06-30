@@ -237,7 +237,10 @@ export default function Explore() {
 
   return (
     <SwipeWrapper tabIndex={1}>
-      <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+      <SafeAreaView
+        style={[styles.container, isDark && styles.darkContainer]}
+        edges={['left', 'right', 'bottom']}
+      >
         <Stack.Screen
           options={{
             headerTitle: 'Explore Properties',
@@ -250,6 +253,13 @@ export default function Explore() {
                 {unreadCount > 0 && <View style={styles.notificationBadge} />}
               </TouchableOpacity>
             ),
+            headerStyle: {
+              backgroundColor: isDark ? '#1A1A1A' : '#F5F5F5',
+            },
+            headerShadowVisible: false,
+            headerTitleStyle: {
+              color: isDark ? '#FFF' : '#333',
+            },
           }}
         />
 

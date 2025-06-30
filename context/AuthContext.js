@@ -39,8 +39,8 @@ export const AuthProvider = ({ children }) => {
       try {
         setLoading(true);
         
-        // Grab any stored user and tokens
-        const storedUser = await authStorage.getUserData();
+        // Grab any stored user and tokens (use async helper to support React Native)
+        const storedUser = await authStorage.getUserDataAsync();
         const accessToken = await authStorage.getAccessToken();
         const refreshToken = await authStorage.getRefreshToken();
         
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
             
             if (isStillValid) {
               // Either keep the original stored user or grab an updated copy
-              const freshUser = storedUser || await authStorage.getUserData();
+              const freshUser = storedUser || await authStorage.getUserDataAsync();
               if (freshUser) {
                 setUser(freshUser);
               }
@@ -120,16 +120,24 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       const response = await authService.register(userData);
+      
       if (response.success) {
+        // Check if verification is required before updating user state
+        if (response.requiresVerification) {
+          // Don't update user state yet, let the component handle the verification flow
+          return response;
+        }
+        
+        // Regular successful registration with session
         updateUserState(response.user);
         return response;
       }
+      
       throw new Error(response.message || 'Registration failed');
     } catch (err) {
       console.error('Registration error:', err);
       setError(err.message);
-      Alert.alert('Registration Error', err.message || 'Failed to register');
-      throw err;
+      throw err; // Let the component handle the error
     } finally {
       setLoading(false);
     }

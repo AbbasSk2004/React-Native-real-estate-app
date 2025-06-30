@@ -99,4 +99,59 @@ The app references several image assets that need to be added to the assets dire
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License.
+
+## Environment Configuration
+
+This app supports both development and production environments:
+
+- **Development**: Uses the local backend at `http://localhost:3001/api`
+- **Production**: Uses the Render backend at `https://eskan-real-estate-backend.onrender.com/api`
+
+### Running in Different Environments
+
+Use these commands to run the app in different environments:
+
+- **Development (Local Backend)**:
+  ```
+  npm run android
+  ```
+
+- **Production (Render Backend)**:
+  ```
+  npm run android:prod
+  ```
+
+## Android Studio Setup
+
+To run the app in Android Studio:
+
+1. Make sure you have the Android development environment set up:
+   ```
+   npm install
+   ```
+
+2. Generate the Android project files:
+   ```
+   npm run prebuild:android
+   ```
+
+3. Open Android Studio and select "Open an existing Android Studio project"
+
+4. Navigate to your project's `android` folder and open it
+
+5. Connect a device or start an emulator
+
+6. Click the "Run" button in Android Studio
+
+### Building a Release APK
+
+To build a release APK that uses the production (Render) backend:
+
+1. In Android Studio, select Build → Generate Signed Bundle / APK
+2. Choose APK
+3. Fill in your keystore information (create a new one if needed)
+4. Select release build variant
+5. Click Finish
+
+The APK will be built with the production configuration pointing to your Render backend. 

@@ -18,6 +18,7 @@ import { useGlobalChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import React from 'react';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function ChatScreen() {
   const flatListRef = useRef(null);
   const { isAuthenticated, user } = useAuth();
   const { isDark } = useTheme();
+  const headerHeight = useHeaderHeight();
   
   const { 
     messages, 
@@ -107,6 +109,19 @@ export default function ChatScreen() {
       clearInterval(refreshInterval);
     };
   }, [conversationId, isAuthenticated, markMessagesAsRead, fetchMessages]);
+  
+  // Scroll to bottom when the chat screen first loads and messages arrive
+  useEffect(() => {
+    // Only run once when messages have been fetched for the first time
+    if (messages && messages.length > 0 && !initialScrollPerformedRef.current) {
+      // Wait until FlatList has laid out its items
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+        initialScrollPerformedRef.current = true;
+        prevMessagesLengthRef.current = messages.length;
+      }, 0);
+    }
+  }, [messages]);
   
   const sendMessage = async () => {
     if (newMessage.trim().length === 0 || !conversationId) return;
@@ -210,18 +225,37 @@ export default function ChatScreen() {
     </View>
   ));
 
+  // --------------------
+  // Header appearance based on theme
+  // --------------------
+  const headerThemeStyles = {
+    headerStyle: {
+      backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+    },
+    contentStyle: {
+      backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+    },
+    headerShadowVisible: !isDark, // Remove shadow in dark mode for flatter look
+    headerTitleStyle: {
+      color: isDark ? '#FFFFFF' : '#333333',
+    },
+    headerTintColor: isDark ? '#FFFFFF' : '#333333',
+  };
+
   // Show authentication required view if not logged in
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <Stack.Screen
           options={{
+            ...headerThemeStyles,
             headerTitle: 'Chat',
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
                 <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
               </TouchableOpacity>
             ),
+            headerShown: true,
           }}
         />
         <View style={styles.authRequiredContainer}>
@@ -247,12 +281,14 @@ export default function ChatScreen() {
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <Stack.Screen
           options={{
+            ...headerThemeStyles,
             headerTitle: 'Chat',
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
                 <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
               </TouchableOpacity>
             ),
+            headerShown: true,
           }}
         />
         <View style={styles.noConversationContainer}>
@@ -267,9 +303,10 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
+    <SafeAreaView style={[styles.container, isDark && styles.darkContainer]} edges={['left', 'right']}>
       <Stack.Screen
         options={{
+          ...headerThemeStyles,
           headerTitle: () => (
             <View style={styles.headerTitleContainer}>
               <Image source={{ uri: contactAvatar }} style={styles.contactAvatar} />
@@ -288,63 +325,62 @@ export default function ChatScreen() {
               <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
             </TouchableOpacity>
           ),
+          headerShown: true,
         }}
       />
-      
       <KeyboardAvoidingView 
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : null}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? -10 : 0}
+        enabled
       >
-        {/* Messages List */}
-        {loadingMessages && (!messages || messages.length === 0) ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0061FF" />
-            <Text style={[styles.loadingText, isDark && styles.darkSubText]}>Loading messages...</Text>
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => `${item.id}-${item.pending ? 'pending' : 'sent'}`}
-            contentContainerStyle={styles.messagesContainer}
-            onContentSizeChange={onContentSizeChange}
-            renderItem={({ item }) => <MessageBubble message={item} />}
-            ListEmptyComponent={() => (
-              <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, isDark && styles.darkSubText]}>No messages yet. Start the conversation!</Text>
-              </View>
-            )}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-        
-        {/* Message Input */}
-        <View style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
-          <TextInput
-            style={[styles.textInput, isDark && styles.darkTextInput]}
-            placeholder="Type your message..."
-            placeholderTextColor={isDark ? "#999" : "#999"}
-            value={newMessage}
-            onChangeText={setNewMessage}
-            multiline
-            onSubmitEditing={sendMessage}
-            editable={!sending}
-          />
-          <TouchableOpacity 
-            style={[
-              styles.sendButton,
-              (!newMessage.trim() || sending) && styles.disabledSendButton 
-            ]}
-            onPress={sendMessage}
-            disabled={!newMessage.trim() || sending}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
+        <View style={styles.chatContainer}>
+          {/* Messages List */}
+          {loadingMessages && (!messages || messages.length === 0) ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#0061FF" />
+              <Text style={[styles.loadingText, isDark && styles.darkSubText]}>Loading messages...</Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              keyExtractor={(item) => `${item.id}-${item.pending ? 'pending' : 'sent'}`}
+              contentContainerStyle={styles.messagesContainer}
+              onContentSizeChange={onContentSizeChange}
+              renderItem={({ item }) => <MessageBubble message={item} />}
+              ListEmptyComponent={() => (
+                <View style={styles.emptyContainer}>
+                  <Text style={[styles.emptyText, isDark && styles.darkSubText]}>No messages yet. Start the conversation!</Text>
+                </View>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+          
+          {/* Message Input - Fixed at bottom */}
+          <View style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
+            <TextInput
+              style={[styles.textInput, isDark && styles.darkTextInput]}
+              placeholder="Type your message..."
+              placeholderTextColor={isDark ? "#999" : "#999"}
+              value={newMessage}
+              onChangeText={setNewMessage}
+              multiline
+              onSubmitEditing={sendMessage}
+              editable={!sending}
+            />
+            <TouchableOpacity 
+              style={[
+                styles.sendButton,
+                (!newMessage.trim() || sending) && styles.disabledSendButton 
+              ]}
+              onPress={sendMessage}
+              disabled={!newMessage.trim() || sending}
+            >
               <Ionicons name="send" size={20} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -396,6 +432,12 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  chatContainer: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
   },
   messagesContainer: {
     padding: 16,
@@ -492,9 +534,11 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 2,
+    paddingBottom: Platform.OS === 'ios' ? 2 : 2,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
+    backgroundColor: Platform.OS === 'ios' ? undefined : 'transparent',
   },
   darkInputContainer: {
     borderTopColor: '#333',

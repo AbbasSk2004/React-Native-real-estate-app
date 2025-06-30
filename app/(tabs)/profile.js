@@ -13,7 +13,9 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
-  Platform
+  Platform,
+  Modal,
+  Pressable
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -67,6 +69,7 @@ export default function Profile() {
   });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   useEffect(() => {
     const initComponent = async () => {
@@ -154,36 +157,13 @@ export default function Profile() {
     return `https://ui-avatars.com/api/?name=${getUserDisplayName()}&background=0061FF&color=fff&size=150&rounded=true`;
   };
 
-  const handleImagePicker = async () => {
+  const handleProfileImagePress = async () => {
     if (!isAuthenticated) {
-      Alert.alert("Login Required", "Please sign in to update your profile picture.");
       router.push('/sign-in');
       return;
     }
-    
-    try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please grant camera roll permissions to change your profile picture.");
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        // Here you would upload the image to your server
-        // For now, we'll just show a success message
-        Alert.alert("Success", "Profile picture updated successfully!");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to pick image");
-    }
+    // Authenticated: open full-screen modal to view image
+    setShowImageModal(true);
   };
 
   const handleNotificationToggle = async (key) => {
@@ -275,8 +255,8 @@ export default function Profile() {
                 // Expo Router versions, but replace('/') below will still work
               }
 
-              // Finally navigate to the Welcome screen
-              router.replace('/');
+              // Finally navigate to the Sign-In screen
+              router.replace('/sign-in');
             } catch (error) {
               console.error("Logout error:", error);
               Alert.alert(
@@ -321,6 +301,13 @@ export default function Profile() {
                 {isAuthenticated && unreadCount > 0 && <View style={styles.notificationBadge} />}
               </TouchableOpacity>
             ),
+            headerStyle: {
+              backgroundColor: isDark ? '#1A1A1A' : '#F5F5F5',
+            },
+            headerShadowVisible: false,
+            headerTitleStyle: {
+              color: isDark ? '#FFF' : '#333',
+            },
           }}
         />
 
@@ -334,13 +321,9 @@ export default function Profile() {
               </View>
             ) : (
               <>
-                <TouchableOpacity onPress={handleImagePicker} style={styles.imageContainer}>
+                <TouchableOpacity onPress={handleProfileImagePress} style={styles.imageContainer}>
                   <Image source={{ uri: getUserProfileImage() }} style={styles.profileImage} />
-                  {isAuthenticated ? (
-                    <View style={styles.editIconContainer}>
-                      <Ionicons name="camera" size={20} color="#FFF" />
-                    </View>
-                  ) : (
+                  {!isAuthenticated && (
                     <View style={styles.signInIconContainer}>
                       <Ionicons name="log-in" size={20} color="#FFF" />
                     </View>
@@ -523,6 +506,17 @@ export default function Profile() {
             )}
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Full screen image modal */}
+        <Modal visible={showImageModal} transparent={true} animationType="fade">
+          <View style={styles.modalContainer}>
+            <Pressable style={styles.modalBackground} onPress={() => setShowImageModal(false)} />
+            <Image source={{ uri: getUserProfileImage() }} style={styles.modalImage} />
+            <Pressable style={styles.modalCloseButton} onPress={() => setShowImageModal(false)}>
+              <Ionicons name="close" size={32} color="#FFF" />
+            </Pressable>
+          </View>
+        </Modal>
       </SafeAreaView>
     </SwipeWrapper>
   );
@@ -662,5 +656,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginTop: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'black',
+    opacity: 0.5,
+  },
+  modalImage: {
+    width: '80%',
+    height: '80%',
+    borderRadius: 10,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }); 

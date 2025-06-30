@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { endpoints } from '../services/api';
 import authStorage from '../utils/authStorage';
+import { useTheme } from '../context/ThemeContext';
 
 const SPECIALTIES = [
   'Select your specialty',
@@ -47,6 +48,24 @@ export default function AgentApplication() {
   const [loading, setLoading] = useState(false);
   const [existingApplication, setExistingApplication] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Theme
+  const { getThemeColors, isDark } = useTheme();
+  const colors = getThemeColors();
+
+  // Header and dynamic styles for dark / light themes
+  const headerThemeStyles = {
+    headerStyle: { backgroundColor: colors.background },
+    headerShadowVisible: !isDark,
+    headerTintColor: colors.text,
+    headerTitleStyle: { color: colors.text },
+  };
+
+  const inputDynamicStyle = {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.text,
+  };
 
   useEffect(() => {
     checkAuthStatus();
@@ -410,9 +429,9 @@ export default function AgentApplication() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+      <SafeAreaView style={[styles.container, styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color="#0061FF" />
-        <Text style={styles.loadingText}>
+        <Text style={[styles.loadingText, { color: colors.text }]}>
           {submitted ? 'Submitting application...' : 'Loading...'}
         </Text>
       </SafeAreaView>
@@ -430,18 +449,19 @@ export default function AgentApplication() {
     };
     
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <Stack.Screen
           options={{
+            ...headerThemeStyles,
             headerTitle: '',
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color="#333" />
+                <Ionicons name="arrow-back" size={24} color={colors.text} />
               </TouchableOpacity>
             ),
           }}
         />
-        <ScrollView style={styles.scrollView}>
+        <ScrollView style={[styles.scrollView, { backgroundColor: colors.background }]}>
           <View style={styles.submittedContainer}>
             {applicationData.image && (
               <Image 
@@ -449,8 +469,8 @@ export default function AgentApplication() {
                 style={styles.profileImage}
               />
             )}
-            <Text style={styles.title}>Agent Profile</Text>
-            <Text style={styles.successText}>
+            <Text style={[styles.title, { color: colors.text }]}>Agent Profile</Text>
+            <Text style={[styles.successText, { color: colors.text }]}>
               {applicationData.status === 'approved' 
                 ? 'Application Approved!' 
                 : applicationData.status === 'rejected'
@@ -458,24 +478,24 @@ export default function AgentApplication() {
                 : 'Application Submitted Successfully!'}
             </Text>
             {applicationData.status === 'pending' && (
-              <Text style={styles.pendingText}>Your application is being reviewed</Text>
+              <Text style={[styles.pendingText, { color: colors.text }]}>Your application is being reviewed</Text>
             )}
           </View>
 
-          <View style={styles.infoSection}>
-            <Text style={styles.sectionTitle}>Contact Information</Text>
-            <Text style={styles.infoText}>Phone: {applicationData.phone}</Text>
+          <View style={[styles.infoSection, isDark && styles.darkInfoSection]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact Information</Text>
+            <Text style={[styles.infoText, { color: colors.text }]}>Phone: {applicationData.phone}</Text>
           </View>
 
-          <View style={styles.infoSection}>
-            <Text style={styles.sectionTitle}>Professional Details</Text>
-            <Text style={styles.infoText}>Specialty: {applicationData.specialty}</Text>
-            <Text style={styles.infoText}>Experience: {applicationData.experience}</Text>
+          <View style={[styles.infoSection, isDark && styles.darkInfoSection]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Professional Details</Text>
+            <Text style={[styles.infoText, { color: colors.text }]}>Specialty: {applicationData.specialty}</Text>
+            <Text style={[styles.infoText, { color: colors.text }]}>Experience: {applicationData.experience}</Text>
           </View>
 
-          <View style={styles.infoSection}>
-            <Text style={styles.sectionTitle}>About Me</Text>
-            <Text style={styles.infoText}>{applicationData.about_me}</Text>
+          <View style={[styles.infoSection, isDark && styles.darkInfoSection]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>About Me</Text>
+            <Text style={[styles.infoText, { color: colors.text }]}>{applicationData.about_me}</Text>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -483,37 +503,39 @@ export default function AgentApplication() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
+          ...headerThemeStyles,
           headerTitle: '',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#333" />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }}
       />
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={[styles.scrollView, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Become an Agent</Text>
-          <Text style={styles.subtitle}>Join our network of professional real estate agents</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Become an Agent</Text>
+          <Text style={[styles.subtitle, { color: colors.text }]}>Join our network of professional real estate agents</Text>
         </View>
 
         {/* Phone Number */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Phone Number* (Lebanese Format)</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Phone Number* (Lebanese Format)</Text>
           <TextInput
-            style={[styles.input, phoneError ? styles.inputError : null]}
+            style={[styles.input, inputDynamicStyle, phoneError ? styles.inputError : null]}
             placeholder="Phone Number"
+            placeholderTextColor={colors.textMuted || '#888'}
             keyboardType="phone-pad"
             value={formData.phoneNumber}
             onChangeText={handlePhoneChange}
           />
           {phoneError ? (
-            <Text style={styles.errorText}>{phoneError}</Text>
+            <Text style={[styles.errorText, { color: colors.text }]}>{phoneError}</Text>
           ) : (
-            <Text style={styles.helperText}>
+            <Text style={[styles.helperText, { color: colors.text }]}>
               Enter a Lebanese number (e.g., +9613123456 or 03123456)
             </Text>
           )}
@@ -521,7 +543,7 @@ export default function AgentApplication() {
 
         {/* Specialty */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Specialty*</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Specialty*</Text>
           <TouchableOpacity
             style={styles.input}
             onPress={() => setShowSpecialtyModal(true)}
@@ -538,10 +560,11 @@ export default function AgentApplication() {
 
         {/* Years of Experience */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Years of Experience*</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Years of Experience*</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, inputDynamicStyle]}
             placeholder="Enter years of experience"
+            placeholderTextColor={colors.textMuted || '#888'}
             keyboardType="numeric"
             value={formData.yearsExperience}
             onChangeText={handleYearsExperienceChange}
@@ -550,10 +573,11 @@ export default function AgentApplication() {
 
         {/* About Me */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>About Me*</Text>
+          <Text style={[styles.label, { color: colors.text }]}>About Me*</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, inputDynamicStyle]}
             placeholder="Tell us about your professional background..."
+            placeholderTextColor={colors.textMuted || '#888'}
             multiline
             numberOfLines={4}
             value={formData.aboutMe}
@@ -563,10 +587,11 @@ export default function AgentApplication() {
 
         {/* Social Links (optional) */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Facebook URL</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Facebook URL</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, inputDynamicStyle]}
             placeholder="https://facebook.com/yourprofile"
+            placeholderTextColor={colors.textMuted || '#888'}
             keyboardType="url"
             autoCapitalize="none"
             value={formData.facebookUrl}
@@ -575,10 +600,11 @@ export default function AgentApplication() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Twitter URL</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Twitter URL</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, inputDynamicStyle]}
             placeholder="https://twitter.com/yourhandle"
+            placeholderTextColor={colors.textMuted || '#888'}
             keyboardType="url"
             autoCapitalize="none"
             value={formData.twitterUrl}
@@ -587,10 +613,11 @@ export default function AgentApplication() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Instagram URL</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Instagram URL</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, inputDynamicStyle]}
             placeholder="https://instagram.com/yourprofile"
+            placeholderTextColor={colors.textMuted || '#888'}
             keyboardType="url"
             autoCapitalize="none"
             value={formData.instagramUrl}
@@ -600,9 +627,9 @@ export default function AgentApplication() {
 
         {/* Profile Photo */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Profile Photo*</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Profile Photo*</Text>
           <TouchableOpacity 
-            style={styles.uploadButton}
+            style={[styles.uploadButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
             onPress={() => pickImage('photo')}
           >
             {formData.profilePhoto ? (
@@ -611,33 +638,33 @@ export default function AgentApplication() {
                 style={styles.uploadedImage}
               />
             ) : (
-              <Text style={styles.uploadText}>Tap to upload profile photo</Text>
+              <Text style={[styles.uploadText, { color: colors.text }]}>Tap to upload profile photo</Text>
             )}
           </TouchableOpacity>
         </View>
 
         {/* CV/Resume */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>CV/Resume* (PDF, PPT, DOCX, TXT)</Text>
+          <Text style={[styles.label, { color: colors.text }]}>CV/Resume* (PDF, PPT, DOCX, TXT)</Text>
           <TouchableOpacity 
-            style={styles.uploadButton}
+            style={[styles.uploadButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
             onPress={() => pickImage('cv')}
           >
             {formData.cv ? (
               <View style={styles.fileUploadedContainer}>
                 <Ionicons name="document-text" size={32} color="#4CAF50" />
-                <Text style={styles.uploadedText}>CV uploaded ✓</Text>
-                <Text style={styles.fileNameText}>
+                <Text style={[styles.uploadedText, { color: colors.text }]}>CV uploaded ✓</Text>
+                <Text style={[styles.fileNameText, { color: colors.text }]}>
                   {formData.cvName || formData.cv.split('/').pop().substring(0, 20)}
                   {formData.cvName || formData.cv.split('/').pop().length > 20 ? '...' : ''}
                 </Text>
-                <Text style={styles.fileTypeText}>{formData.cvMimeType ? formData.cvMimeType.toUpperCase() : formData.cv.split('.').pop().toUpperCase()} Document</Text>
+                <Text style={[styles.fileTypeText, { color: colors.text }]}>{formData.cvMimeType ? formData.cvMimeType.toUpperCase() : formData.cv.split('.').pop().toUpperCase()} Document</Text>
               </View>
             ) : (
               <View style={styles.fileUploadContainer}>
                 <Ionicons name="document-attach" size={32} color="#666" />
-                <Text style={styles.uploadText}>Tap to upload your CV/Resume</Text>
-                <Text style={styles.fileTypeText}>PDF, PPT, DOCX, TXT formats</Text>
+                <Text style={[styles.uploadText, { color: colors.text }]}>Tap to upload your CV/Resume</Text>
+                <Text style={[styles.fileTypeText, { color: colors.text }]}>PDF, PPT, DOCX, TXT formats</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -649,7 +676,7 @@ export default function AgentApplication() {
           onPress={handleSubmit}
           disabled={!isAuthenticated}
         >
-          <Text style={styles.submitButtonText}>
+          <Text style={[styles.submitButtonText, { color: colors.text }]}>
             {isAuthenticated ? 'Submit Application' : 'Login Required'}
           </Text>
         </TouchableOpacity>
@@ -830,6 +857,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
+  },
+  darkInfoSection: {
+    backgroundColor: '#2A2A2A',
   },
   sectionTitle: {
     fontSize: 18,

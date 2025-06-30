@@ -2,6 +2,11 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config/constants';
 import authStorage from '../utils/authStorage';
 import { handleAuthError, handleTokenError, AUTH_ERROR_TYPES } from '../utils/authErrorHandler';
+import { getEnvironment } from '../utils/environment';
+
+// Log API configuration
+console.log(`[API] Initializing API client for ${getEnvironment()} environment`);
+console.log(`[API] Base URL: ${API_BASE_URL}`);
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -44,7 +49,7 @@ const processQueue = (error, token = null) => {
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,  // Increase timeout to 30 seconds
   headers: {
     'Content-Type': 'application/json'
   }
@@ -52,7 +57,7 @@ const api = axios.create({
 
 // Special configuration for map-related requests
 const mapApi = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+  baseURL: API_BASE_URL, // Use the same API_BASE_URL as the main API
   timeout: 30000, // 30 seconds timeout for map operations
   headers: {
     'Content-Type': 'application/json'
@@ -73,6 +78,8 @@ const publicEndpoints = [
   '/auth/login',
   '/auth/register',
   '/auth/refresh',
+  '/auth/verify',
+  '/auth/verify-supabase',  // Add the verify-supabase endpoint
   '/contact',
   '/property-views',
   '/property-views/',
@@ -82,6 +89,7 @@ const publicEndpoints = [
   '/property-views/user',
   '/recommendations',
   '/recommendations/*',
+  '/recommendation/recommended',  // Add the ML recommendation endpoint
   '/agents',
   '/agents/',
   '/agents/featured',
@@ -116,6 +124,7 @@ const CACHEABLE_ENDPOINTS = [
   '/properties/recommended',
   '/properties/*/views/count',
   '/similar-properties/*',
+  '/recommendation/recommended',  // Add ML recommendations to cacheable endpoints
   '/agents',  // Add agents endpoint to cache
   '/typepage/*', // Add typepage to cacheable endpoints
   '/agents/featured'  // Add featured agents endpoint to cache
@@ -149,6 +158,24 @@ const setCachedResponse = (cacheKey, data) => {
 // Add error handling utility
 const handleError = (error, customMessage = 'An error occurred') => {
   console.error('API Error:', error);
+  
+  // Check if error is a network error
+  if (error.message && error.message.includes('Network Error')) {
+    return {
+      error: 'network_error',
+      message: 'Network error occurred. Please check your internet connection.',
+      status: 0
+    };
+  }
+  
+  // Check if error is a timeout
+  if (error.code === 'ECONNABORTED') {
+    return {
+      error: 'timeout',
+      message: 'Request timed out. Please try again.',
+      status: 0
+    };
+  }
   
   // Check if error is an axios error with response
   if (error.response) {
@@ -815,8 +842,6 @@ const chat = {
 const notifications = {
   getAll: () => api.get('/notifications'),
   getUnreadCount: () => api.get('/notifications/unread-count'),
-  getSettings: () => api.get('/notifications/settings'),
-  updateSettings: (settings) => api.put('/notifications/settings', settings),
   markAsRead: (notificationId) => api.put(`/notifications/${notificationId}/read`),
   markAllAsRead: () => api.put('/notifications/read-all')
 };

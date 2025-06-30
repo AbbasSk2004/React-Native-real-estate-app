@@ -6,17 +6,15 @@ import {
 } from '../utils/notificationUtils';
 import notificationService from '../services/notificationService';
 import { useToast } from './useToast';
+import websocketService from '../services/websocket';
 
-// Create a singleton for polling to prevent multiple instances
-let activePollingRequests = new Map();
-let pollingTimeouts = new Map();
+// Keep track of last notification timestamp (singleton)
 let lastNotificationTimestamp = new Map();
 
 export const useNotifications = (options = {}) => {
   const {
     enableBrowserNotifications = true,
     enableSound = true,
-    pollInterval = 10000, // 10 seconds for more real-time updates
     autoMarkRead = false
   } = options;
 
@@ -27,7 +25,6 @@ export const useNotifications = (options = {}) => {
   const [error, setError] = useState(null);
   const toast = useToast();
   const mountedRef = useRef(true);
-  const lastFetchRef = useRef(Date.now());
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isManualFetchRef = useRef(false);
   const abortControllerRef = useRef(null);
@@ -40,18 +37,7 @@ export const useNotifications = (options = {}) => {
   }, []);
 
   const fetchNotifications = useCallback(async (force = false) => {
-    // If there's already a request in progress for this user, don't start another one
-    if (activePollingRequests.get(user?.id)) {
-      return;
-    }
-
     if (!isAuthenticated || !user?.id || !mountedRef.current) {
-      return;
-    }
-
-    // Don't fetch if the last fetch was too recent (unless forced)
-    const now = Date.now();
-    if (!force && !isInitialLoad && now - lastFetchRef.current < 5000) { // Throttle to max once per 5 seconds
       return;
     }
 
@@ -62,10 +48,6 @@ export const useNotifications = (options = {}) => {
       }
       setError(null);
       
-      // Set the flag that we're fetching for this user
-      activePollingRequests.set(user.id, true);
-      lastFetchRef.current = now;
-      
       // Cancel any pending requests
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -74,49 +56,57 @@ export const useNotifications = (options = {}) => {
       // Create new abort controller for this request
       abortControllerRef.current = new AbortController();
       
-      const lastTimestamp = lastNotificationTimestamp.get(user.id) || 0;
       const response = await notificationService.getAllNotifications(abortControllerRef.current.signal);
       
       if (mountedRef.current) {
-        if (response.error) {
+        // Only set error if it's not a network error with cached data
+        if (response.error && !(response.type === 'network_error' && response.data?.notifications?.length > 0)) {
           setError(response.error);
-        } else {
-          const newNotifications = response.data.notifications || [];
-          
-          // Check for new notifications only if the data is not from cache
-          if (!response.data.fromCache) {
-            const hasNewNotifications = newNotifications.some(notification => 
-              new Date(notification.created_at).getTime() > lastTimestamp
+        }
+        
+        const newNotifications = response.data.notifications || [];
+        
+        // Check for new notifications only if the data is not from cache
+        if (!response.data.fromCache) {
+          const lastTimestamp = lastNotificationTimestamp.get(user.id) || 0;
+          const hasNewNotifications = newNotifications.some(notification => 
+            new Date(notification.created_at).getTime() > lastTimestamp
+          );
+
+          if (hasNewNotifications) {
+            // Update the timestamp of the latest notification
+            const latestTimestamp = Math.max(
+              ...newNotifications.map(n => new Date(n.created_at).getTime()),
+              lastTimestamp // Include current timestamp to prevent issues if array is empty
             );
+            lastNotificationTimestamp.set(user.id, latestTimestamp);
 
-            if (hasNewNotifications) {
-              // Update the timestamp of the latest notification
-              const latestTimestamp = Math.max(
-                ...newNotifications.map(n => new Date(n.created_at).getTime()),
-                lastTimestamp // Include current timestamp to prevent issues if array is empty
-              );
-              lastNotificationTimestamp.set(user.id, latestTimestamp);
-
-              // Show browser notification if enabled and not the initial load
-              if (!isInitialLoad && enableBrowserNotifications && typeof document !== 'undefined' && document.hidden) {
-                const newUnreadCount = newNotifications.filter(n => !n.read).length;
-                if (newUnreadCount > unreadCount) {
-                  showBrowserNotification('New Notification', 'You have new notifications');
-                  if (enableSound) {
-                    playNotificationSound();
-                  }
+            // Show browser notification if enabled and not the initial load
+            if (!isInitialLoad && enableBrowserNotifications && typeof document !== 'undefined' && document.hidden) {
+              const newUnreadCount = newNotifications.filter(n => !n.read).length;
+              if (newUnreadCount > unreadCount) {
+                showBrowserNotification('New Notification', 'You have new notifications');
+                if (enableSound) {
+                  playNotificationSound();
                 }
               }
             }
           }
-
-          setNotifications(newNotifications);
-          setUnreadCount(newNotifications.filter(n => !n.read).length || 0);
         }
+
+        setNotifications(newNotifications);
+        setUnreadCount(newNotifications.filter(n => !n.read).length || 0);
       }
     } catch (err) {
-      if (err.name !== 'AbortError' && mountedRef.current) {
-        setError(err.message);
+      // Ignore AbortError as it's intentional when refreshing
+      if (err.name === 'AbortError') {
+        console.log('Fetch aborted intentionally');
+      } else if (mountedRef.current) {
+        console.error('Fetch notification error:', err);
+        // Don't set error for network errors on manual refreshes
+        if (!(isManualFetchRef.current && err.message && err.message.includes('Network'))) {
+          setError(err.message || 'Network error occurred');
+        }
       }
     } finally {
       if (mountedRef.current) {
@@ -127,8 +117,6 @@ export const useNotifications = (options = {}) => {
         setIsInitialLoad(false);
         isManualFetchRef.current = false;
       }
-      // Clear the flag that we're fetching for this user
-      activePollingRequests.delete(user?.id);
       
       // Clear abort controller reference
       abortControllerRef.current = null;
@@ -141,54 +129,122 @@ export const useNotifications = (options = {}) => {
     await fetchNotifications(true);
   }, [fetchNotifications]);
 
-  const startPolling = useCallback(() => {
-    if (!isAuthenticated || !user?.id) return;
-
-    // Clear any existing polling for this user
-    if (pollingTimeouts.has(user.id)) {
-      clearTimeout(pollingTimeouts.get(user.id));
-      pollingTimeouts.delete(user.id);
-    }
-
-    const poll = async () => {
-      await fetchNotifications();
-      if (mountedRef.current) {
-        const timeoutId = setTimeout(poll, pollInterval);
-        pollingTimeouts.set(user.id, timeoutId);
-      }
-    };
-
-    // Start polling
-    poll();
-  }, [isAuthenticated, user?.id, pollInterval, fetchNotifications]);
-
-  // Setup and cleanup for polling mechanism
+  // Fetch notifications when component mounts
   useEffect(() => {
     mountedRef.current = true;
-    
+
     if (isAuthenticated && user?.id) {
+      // Always fetch once on mount
       fetchNotifications();
-      startPolling();
     }
 
     return () => {
       mountedRef.current = false;
-      if (user?.id) {
-        // Cleanup polling for this user
-        if (pollingTimeouts.has(user.id)) {
-          clearTimeout(pollingTimeouts.get(user.id));
-          pollingTimeouts.delete(user.id);
-        }
-        activePollingRequests.delete(user.id);
-      }
-      
       // Cancel any pending requests
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
     };
-  }, [isAuthenticated, user?.id, startPolling, fetchNotifications]);
+  }, [isAuthenticated, user?.id, fetchNotifications]);
+
+  // WebSocket integration: listen for real-time notification events
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    // Ensure a single socket connection
+    websocketService.connect();
+    
+    console.log('[useNotifications] Setting up WebSocket listeners');
+
+    // --- Handlers for server-emitted events ---
+    const handleCreated = (data) => {
+      console.log('[useNotifications] Received event data:', data);
+      
+      // Handle notification_created event
+      if (data.notification) {
+        const notification = data.notification;
+        console.log('[useNotifications] Received real-time notification:', notification);
+        
+        setNotifications(prev => {
+          // Avoid duplicates
+          if (prev.some(n => n.id === notification.id)) return prev;
+          const updated = [notification, ...prev];
+          if (!notification.read) {
+            setUnreadCount(updated.filter(n => !n.read).length);
+          }
+          // Optional UX: play sound / browser notification when app is in background (web only)
+          if (enableBrowserNotifications && typeof document !== 'undefined' && document.hidden) {
+            showBrowserNotification(notification.title, notification.message);
+            if (enableSound) {
+              playNotificationSound();
+            }
+          }
+          return updated;
+        });
+      }
+      // Handle new_message event which might not have notification property
+      else if (data.content && data.conversation_id) {
+        console.log('[useNotifications] Received message:', data);
+        // Fetch notifications to ensure we have the latest
+        fetchNotifications(true);
+      }
+    };
+
+    const handleUpdated = ({ notification }) => {
+      if (!notification) return;
+      
+      console.log('[useNotifications] Notification updated:', notification);
+      
+      setNotifications(prev => {
+        const updated = prev.map(n => (n.id === notification.id ? notification : n));
+        setUnreadCount(updated.filter(n => !n.read).length);
+        return updated;
+      });
+    };
+
+    const handleDeleted = ({ id }) => {
+      if (!id) return;
+      
+      console.log('[useNotifications] Notification deleted:', id);
+      
+      setNotifications(prev => {
+        const updated = prev.filter(n => n.id !== id);
+        setUnreadCount(updated.filter(n => !n.read).length);
+        return updated;
+      });
+    };
+
+    const handleConnection = ({ connected }) => {
+      console.log('[useNotifications] WebSocket connection status:', connected);
+      
+      if (connected) {
+        // On reconnect, pull any missed data to ensure consistency
+        fetchNotifications(true);
+      }
+    };
+
+    // Subscribe to events and capture unsubscribe functions
+    const unsubCreate = websocketService.subscribe('notification_created', handleCreated);
+    const unsubUpdate = websocketService.subscribe('notification_updated', handleUpdated);
+    const unsubDelete = websocketService.subscribe('notification_deleted', handleDeleted);
+    const unsubConn   = websocketService.subscribe('connection', handleConnection);
+    
+    // Force a reconnect when this effect runs to ensure we have a fresh connection
+    const reconnectTimeout = setTimeout(() => {
+      websocketService.reconnect();
+    }, 300);
+
+    // Cleanup on unmount / auth change
+    return () => {
+      clearTimeout(reconnectTimeout);
+      unsubCreate();
+      unsubUpdate();
+      unsubDelete();
+      unsubConn();
+      console.log('[useNotifications] WebSocket listeners removed');
+    };
+  }, [isAuthenticated, user?.id, enableBrowserNotifications, enableSound, fetchNotifications]);
 
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId) => {

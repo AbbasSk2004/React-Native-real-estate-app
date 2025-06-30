@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, Redirect } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
   Image,
@@ -16,32 +16,18 @@ import { useAuth } from '../context/AuthContext';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, initialized } = useAuth();
   const logoImage = getImage('logo');
 
-  // Redirect logged-in users directly to home
-  useEffect(() => {
-    let isMounted = true;
-    
-    // Check if user is authenticated and component is still mounted
-    if (isAuthenticated && isMounted) {
-      // Add a small delay to ensure auth state is stable
-      const timer = setTimeout(() => {
-        if (isMounted) {
-          router.replace('/(tabs)');
-        }
-      }, 100);
-      
-      return () => {
-        isMounted = false;
-        clearTimeout(timer);
-      };
-    }
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [isAuthenticated]);
+  // Early redirect for authenticated users once auth is fully initialised.
+  if (initialized && isAuthenticated) {
+    return <Redirect href="/(tabs)" />;
+  }
+
+  // Optionally render nothing (or a splash) while auth is initializing to prevent UI flicker.
+  if (!initialized) {
+    return null;
+  }
 
   const handleSignIn = () => {
     router.push('/sign-in');

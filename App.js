@@ -5,6 +5,7 @@ import { registerRootComponent } from 'expo';
 import { ExpoRoot } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions } from './utils/notificationUtils';
+import { logEnvironmentInfo } from './utils/environment';
 
 // Configure notification handler for when app is in foreground
 Notifications.setNotificationHandler({
@@ -18,6 +19,9 @@ Notifications.setNotificationHandler({
 export default function App() {
   // Request notification permissions when app starts
   useEffect(() => {
+    // Log environment information on startup
+    logEnvironmentInfo();
+    
     const setupNotifications = async () => {
       try {
         await requestNotificationPermissions();

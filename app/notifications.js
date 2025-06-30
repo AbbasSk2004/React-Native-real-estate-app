@@ -23,11 +23,13 @@ import {
   formatRelativeTime,
   NOTIFICATION_TYPES
 } from '../utils/notificationUtils';
+import websocketService from '../services/websocket';
 
 export default function Notifications() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const { isDark } = useTheme();
+  const { isDark, getThemeColors } = useTheme();
+  const colors = getThemeColors();
   const [refreshing, setRefreshing] = useState(false);
   
   // Using global NotificationContext instead of local hook to keep badge in sync
@@ -35,6 +37,7 @@ export default function Notifications() {
     notifications,
     unreadCount,
     loading,
+    error,
     fetchNotifications,
     markAsRead,
     markAllAsRead,
@@ -167,14 +170,56 @@ export default function Notifications() {
   // Handle refresh - fetch fresh notifications from server
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchNotifications();
-    setRefreshing(false);
+    try {
+      // Don't attempt to reconnect WebSocket during refresh
+      await fetchNotifications();
+    } catch (err) {
+      console.log('[NotificationsScreen] Refresh error:', err);
+      // Don't show error to user during pull-to-refresh
+    } finally {
+      setRefreshing(false);
+    }
   };
   
   // Fetch notifications when component mounts
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  // Subscribe to WebSocket events for real-time updates
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    console.log('[NotificationsScreen] Setting up WebSocket listeners');
+    
+    // Handle real-time notification creation
+    const handleNotificationCreated = (data) => {
+      console.log('[NotificationsScreen] Notification created event received', data);
+      // Force refresh notifications
+      fetchNotifications();
+    };
+    
+    // Subscribe to WebSocket events
+    const unsubCreate = websocketService.subscribe('notification_created', handleNotificationCreated);
+    const unsubMessage = websocketService.subscribe('new_message', handleNotificationCreated);
+    
+    // Ensure WebSocket is connected
+    let reconnectTimeout;
+    if (!websocketService.isConnected) {
+      reconnectTimeout = setTimeout(() => {
+        websocketService.reconnect();
+      }, 300); // Small delay to prevent rapid reconnects
+    }
+    
+    return () => {
+      console.log('[NotificationsScreen] Cleaning up WebSocket listeners');
+      unsubCreate();
+      unsubMessage();
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+    };
+  }, [isAuthenticated, fetchNotifications]);
 
   // Handle permission request button press
   const handleRequestPermissions = () => {
@@ -183,15 +228,12 @@ export default function Notifications() {
 
   // Render notification item
   const renderNotificationItem = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => handleNotificationPress(item)}
-      onLongPress={() => handleNotificationLongPress(item)}
+    <View
       style={[
         styles.notificationItem,
         item.read ? styles.readNotification : styles.unreadNotification,
         isDark && item.read ? styles.darkReadNotification : isDark && styles.darkUnreadNotification
       ]}
-      activeOpacity={0.7}
     >
       <View style={styles.notificationContent}>
         {/* Notification Icon/Avatar */}
@@ -237,10 +279,33 @@ export default function Notifications() {
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   const renderEmptyState = () => {
+    if (error && !notifications.length) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="cloud-offline-outline" size={60} color={isDark ? "#444" : "#ccc"} />
+          <Text style={[styles.emptyTitle, isDark && styles.darkText]}>Connection Issue</Text>
+          <Text style={[styles.emptyText, isDark && styles.darkSubText]}>
+            {typeof error === 'string' ? error : 'Unable to fetch notifications.'}
+          </Text>
+          <TouchableOpacity 
+            style={styles.permissionButton} 
+            onPress={() => {
+              // Try to reconnect WebSocket first
+              websocketService.reconnect();
+              // Then refresh notifications
+              onRefresh();
+            }}
+          >
+            <Text style={styles.permissionButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    
     // Only show permission request button on mobile platforms when permissions aren't granted
     const showPermissionButton = Platform.OS !== 'web' && permissionStatus !== 'granted';
     
@@ -277,14 +342,30 @@ export default function Notifications() {
     </View>
   );
 
+  // --------------------
+  // Header appearance based on theme
+  // --------------------
+  const headerThemeStyles = {
+    headerStyle: {
+      backgroundColor: colors.background,
+    },
+    headerShadowVisible: !isDark,
+    headerTitleStyle: {
+      color: colors.text,
+    },
+    headerTintColor: colors.text,
+  };
+
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
         <Stack.Screen options={{ 
+          ...headerThemeStyles,
           headerTitle: 'Notifications',
+          headerShown: true,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-              <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }} />
@@ -312,16 +393,18 @@ export default function Notifications() {
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
       <Stack.Screen options={{ 
+        ...headerThemeStyles,
         headerTitle: 'Notifications',
+        headerShown: true,
         headerLeft: () => (
           <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-            <Ionicons name="arrow-back" size={24} color={isDark ? "#FFF" : "#333"} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
         ),
         headerRight: () => (
           notifications.length > 0 && (
             <TouchableOpacity onPress={handleDeleteAllPress} style={styles.headerButton}>
-              <Ionicons name="trash-outline" size={24} color={isDark ? "#FFF" : "#333"} />
+              <Ionicons name="trash-outline" size={24} color={colors.text} />
             </TouchableOpacity>
           )
         ),

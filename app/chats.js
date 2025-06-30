@@ -10,16 +10,22 @@ import {
     TouchableOpacity,
     View,
     ActivityIndicator,
-    Alert
+    Alert,
+    RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGlobalChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useDebounce } from '../hooks/useDebounce';
+import { ThemedView, ThemedText } from '../components/common/ThemedView';
+import { chatService } from '../services/chat.service';
 
 export default function ChatsList() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuth();
+  const { isDark, getThemeColors } = useTheme();
+  const colors = getThemeColors();
   const { 
     conversations, 
     loadingConversations,
@@ -36,6 +42,9 @@ export default function ChatsList() {
   const [filteredChats, setFilteredChats] = useState([]);
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   
+  // Pull-to-refresh state
+  const [refreshing, setRefreshing] = useState(false);
+  
   // Initial data fetch
   useEffect(() => {
     if (isAuthenticated) {
@@ -46,14 +55,16 @@ export default function ChatsList() {
   // Filter conversations based on search query
   useEffect(() => {
     if (debouncedSearchQuery.trim() === '') {
-      setFilteredChats(conversations);
+      const sorted = [...conversations].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+      setFilteredChats(sorted);
     } else {
       const filtered = conversations.filter(chat => {
         const otherParticipant = getOtherParticipant(chat);
         const fullName = `${otherParticipant?.firstname || ''} ${otherParticipant?.lastname || ''}`.toLowerCase();
         return fullName.includes(debouncedSearchQuery.toLowerCase());
       });
-      setFilteredChats(filtered);
+      const sortedFiltered = filtered.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+      setFilteredChats(sortedFiltered);
     }
   }, [debouncedSearchQuery, conversations]);
   
@@ -151,6 +162,21 @@ export default function ChatsList() {
     );
   };
   
+  // Handle pull-to-refresh
+  const handleRefresh = async () => {
+    if (!isAuthenticated) return;
+    setRefreshing(true);
+    try {
+      // Clear caches so that fresh data is fetched
+      chatService.clearAllCache?.();
+      await fetchConversations({ silent: true, force: true });
+    } catch (error) {
+      console.error('Error refreshing conversations:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  
   // Memoized chat item component to prevent unnecessary re-renders
   const formatRelativeTimestamp = (ts) => {
     if (!ts) return '';
@@ -197,7 +223,7 @@ export default function ChatsList() {
 
     return (
       <TouchableOpacity
-        style={styles.chatItem}
+        style={[styles.chatItem, { borderBottomColor: colors.border }]}
         activeOpacity={0.7}
         onPress={() => onPress(chat)}
         onLongPress={() => onLongPress(chat.id)}
@@ -212,17 +238,18 @@ export default function ChatsList() {
 
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
-            <Text style={styles.userName}>{userName || 'User'}</Text>
-            <Text style={styles.timestamp}>{formatRelativeTimestamp(timestamp)}</Text>
+            <ThemedText style={styles.userName}>{userName || 'User'}</ThemedText>
+            <ThemedText style={styles.timestamp} color={colors.textMuted}>{formatRelativeTimestamp(timestamp)}</ThemedText>
           </View>
 
           <View style={styles.chatFooter}>
-            <Text
+            <ThemedText
               style={[styles.lastMessage, unreadCount > 0 && styles.unreadMessage]}
+              color={unreadCount > 0 ? colors.text : colors.textSecondary}
               numberOfLines={1}
             >
               {lastMessage}
-            </Text>
+            </ThemedText>
 
             {unreadCount > 0 && (
               <View style={styles.unreadBadge}>
@@ -250,7 +277,7 @@ export default function ChatsList() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ThemedView style={styles.container}>
         <Stack.Screen 
           options={{
             headerShown: false,
@@ -258,11 +285,11 @@ export default function ChatsList() {
         />
         
         <View style={styles.emptyState}>
-          <Ionicons name="lock-closed-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyStateTitle}>Authentication Required</Text>
-          <Text style={styles.emptyStateMessage}>
+          <Ionicons name="lock-closed-outline" size={64} color={colors.textMuted} />
+          <ThemedText style={styles.emptyStateTitle}>Authentication Required</ThemedText>
+          <ThemedText style={styles.emptyStateMessage} color={colors.textSecondary}>
             Please sign in to view your chats
-          </Text>
+          </ThemedText>
           <TouchableOpacity
             style={styles.signInButton}
             onPress={() => router.push('/sign-in')}
@@ -270,12 +297,12 @@ export default function ChatsList() {
             <Text style={styles.signInButtonText}>Sign In</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </ThemedView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ThemedView style={styles.container}>
       <Stack.Screen 
         options={{
           headerShown: false,
@@ -283,31 +310,31 @@ export default function ChatsList() {
       />
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="chevron-back" size={24} color="#0061FF" />
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={styles.headerTitle}>Chats</Text>
+        <ThemedText style={styles.headerTitle}>Chats</ThemedText>
         
         <TouchableOpacity style={styles.optionsButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color="#191D31" />
+          <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
       
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#666876" />
+      <View style={[styles.searchContainer, { borderBottomColor: colors.border }]}>
+        <View style={[styles.searchInputContainer, { backgroundColor: colors.surface }]}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search for users"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#666876"
+            placeholderTextColor={colors.textSecondary}
             clearButtonMode="while-editing"
           />
         </View>
@@ -320,34 +347,40 @@ export default function ChatsList() {
           renderItem={renderChatItem}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.chatsList}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+            />
+          }
         />
       ) : !loadingConversations ? (
         <View style={styles.emptyState}>
-          <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyStateTitle}>No chats found</Text>
-          <Text style={styles.emptyStateMessage}>
+          <Ionicons name="chatbubbles-outline" size={64} color={colors.textMuted} />
+          <ThemedText style={styles.emptyStateTitle}>No chats found</ThemedText>
+          <ThemedText style={styles.emptyStateMessage} color={colors.textSecondary}>
             {searchQuery.trim() !== '' 
               ? `No users matching "${searchQuery}"`
               : "Your messages will appear here"
             }
-          </Text>
+          </ThemedText>
         </View>
       ) : null}
 
       {/* Overlay loader shown during background refresh */}
-      {loadingConversations && (
+      {loadingConversations && !refreshing && (
         <View style={styles.overlayLoader} pointerEvents="none">
-          <ActivityIndicator size="small" color="#0061FF" />
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
-    </SafeAreaView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -356,7 +389,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F8',
   },
   backButton: {
     width: 40,
@@ -367,7 +399,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#191D31',
   },
   optionsButton: {
     width: 40,
@@ -378,12 +409,10 @@ const styles = StyleSheet.create({
   searchContainer: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F8',
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F8',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
@@ -391,7 +420,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#191D31',
     marginLeft: 8,
     paddingVertical: 0,
   },
@@ -402,7 +430,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F8',
   },
   avatarContainer: {
     position: 'relative',
@@ -437,11 +464,9 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#191D31',
   },
   timestamp: {
     fontSize: 12,
-    color: '#666876',
   },
   chatFooter: {
     flexDirection: 'row',
@@ -450,12 +475,10 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     fontSize: 14,
-    color: '#666876',
     flex: 1,
   },
   unreadMessage: {
     fontWeight: '600',
-    color: '#191D31',
   },
   unreadBadge: {
     backgroundColor: '#0061FF',
@@ -480,13 +503,11 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#191D31',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateMessage: {
     fontSize: 14,
-    color: '#666876',
     textAlign: 'center',
   },
   overlayLoader: {

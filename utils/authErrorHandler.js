@@ -23,6 +23,12 @@ export const handleAuthError = (error) => {
         type: AUTH_ERROR_TYPES.UNAUTHORIZED,
         message: 'Please log in to continue'
       };
+    case 400:
+    case 409:
+      return {
+        type: AUTH_ERROR_TYPES.SERVER_ERROR,
+        message: error.response.data?.message || 'An unexpected error occurred'
+      };
     case 403:
       return {
         type: AUTH_ERROR_TYPES.INVALID_TOKEN,
@@ -31,7 +37,7 @@ export const handleAuthError = (error) => {
     default:
       return {
         type: AUTH_ERROR_TYPES.SERVER_ERROR,
-        message: 'An unexpected error occurred'
+        message: error.response?.data?.message || 'An unexpected error occurred'
       };
   }
 };

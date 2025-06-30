@@ -144,17 +144,21 @@ export const useChat = () => {
   }, [activeConversation, fetchMessages, markMessagesAsRead]);
 
   // Fetch conversations
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (options = {}) => {
+    const { silent = false, force = false } = options;
     if (!isAuthenticated || !user || fetchInProgress.current) {
       return;
     }
 
     try {
       fetchInProgress.current = true;
-      setLoadingConversations(true);
+      if (!silent) setLoadingConversations(true);
       clearError();
       
-      const data = await chatService.fetchConversations();
+      const dataRaw = await chatService.fetchConversations(0, force);
+      const data = Array.isArray(dataRaw)
+        ? [...dataRaw].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        : [];
       if (Array.isArray(data)) {
         setConversations(prev => {
           if (prev.length === data.length && prev.every((conv, idx) => conv.id === data[idx].id && conv.updated_at === data[idx].updated_at)) {
@@ -174,11 +178,11 @@ export const useChat = () => {
       console.error('Error fetching conversations:', err);
       const shouldRetry = await handleApiError(err);
       if (shouldRetry) {
-        return fetchConversations();
+        return fetchConversations(options);
       }
     } finally {
       fetchInProgress.current = false;
-      setLoadingConversations(false);
+      if (!silent) setLoadingConversations(false);
     }
   }, [user, isAuthenticated, activeConversation, refreshToken]);
 
@@ -193,7 +197,7 @@ export const useChat = () => {
 
       try {
         // Initial fetch
-        await fetchConversations();
+        await fetchConversations({ silent: true, force: true });
         if (activeConversation?.id) {
           await fetchMessages(activeConversation.id, true);
         }
@@ -223,7 +227,7 @@ export const useChat = () => {
         conversationsTimer = setInterval(async () => {
           if (!fetchInProgress.current && isMounted) {
             // polling for conversations
-            await fetchConversations();
+            await fetchConversations({ silent: true, force: true });
             // Check if there are new messages in the active conversation
             if (activeConversation?.id) {
               const conversationData = await chatService.fetchConversationById(activeConversation.id);
@@ -364,7 +368,7 @@ export const useChat = () => {
         
         // Immediate fetch after sending
         await fetchMessages(conversationId, true);
-        await fetchConversations();
+        await fetchConversations({ silent: true, force: true });
       }
       return newMessage;
     } catch (err) {
