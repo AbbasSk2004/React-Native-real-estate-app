@@ -1,51 +1,142 @@
-# Real Estate Mobile App
+# Eskan Real Estate Mobile App
 
-A React Native application built with Expo Router for browsing real estate properties, scheduling appointments, and managing user profiles.
+A comprehensive React Native real estate application built with Expo Router for browsing, searching, and managing properties. This app provides a complete real estate experience, including property listings, agent interactions, chat functionality, user profiles, and more.
 
 ## Features
 
-- **Property Browsing**: View featured properties, search for properties, and filter by various criteria
-- **Property Details**: View detailed information about properties including images, descriptions, and amenities
-- **User Authentication**: Sign in and sign up functionality
-- **User Profile**: View and edit user profile information
-- **Appointment Management**: Schedule, view, and manage property viewing appointments
+### Property Management
+- **Property Browsing**: Browse featured, recommended, and trending properties
+- **Advanced Search**: Filter properties by type, price range, location, amenities, and more
+- **Property Details**: View comprehensive property information including images, descriptions, amenities, and location
+- **Save Properties**: Save favorite properties for later viewing
+- **Property Listings**: Users can list their own properties for sale or rent
+- **Property Inquiries**: Contact property owners or agents directly through the app
+
+### User Experience
+- **Multi-tab Navigation**: Home, Explore, Agents, and Profile tabs for easy navigation
+- **Dark/Light Mode**: Support for system theme preferences
+- **Responsive Design**: Works on various screen sizes and orientations
+- **Offline Support**: Basic functionality works without internet connection
+- **Push Notifications**: Receive updates about property inquiries, messages, and more
+
+### User Management
+- **Authentication**: Complete sign-in, sign-up, and password recovery flows
+- **Profile Management**: Edit profile information, upload profile pictures
+- **Agent Applications**: Apply to become a verified agent on the platform
+- **Verification**: OTP verification for secure account access
+
+### Communication
+- **Chat System**: Real-time chat between users, property owners, and agents
+- **Notifications**: In-app notification center for updates and messages
+- **Contact Forms**: Submit inquiries about properties or general questions
+
+### Payments & Business
+- **Payment Methods**: Manage payment methods for transactions
+- **FAQ Section**: Comprehensive FAQ section for common questions
+- **Terms & Privacy**: Detailed terms of service and privacy policy
 
 ## Tech Stack
 
-- **React Native**: Mobile application framework
-- **Expo**: Development platform for React Native
-- **Expo Router**: File-based routing system for Expo applications
+### Frontend
+- **React Native**: Cross-platform mobile framework
+- **Expo**: Development platform with pre-built native components
+- **Expo Router**: File-based routing system for seamless navigation
+- **NativeWind/Tailwind CSS**: Utility-first styling approach
 - **React Navigation**: Navigation library integrated with Expo Router
-- **NativeWind/Tailwind CSS**: Styling utilities
+
+### State Management & Data Handling
+- **Context API**: For global state management
+- **Async Storage**: For persistent local storage
+- **Axios**: For API requests and data fetching
+
+### UI/UX Components
+- **Expo Image**: Optimized image handling and caching
+- **React Native Reanimated**: For smooth animations and transitions
+- **Expo Haptics**: For tactile feedback
+- **Vector Icons**: For consistent iconography throughout the app
+
+### Backend Integration
+- **RESTful API**: Integration with backend services
+- **WebSockets**: For real-time chat and notifications
+- **Environment Configuration**: Support for development and production environments
 
 ## Project Structure
 
 ```
 real_estate/
-├── app/                  # Application screens
-│   ├── (tabs)/           # Tab navigator screens
-│   │   ├── _layout.js    # Tab navigator configuration
-│   │   ├── index.js      # Home tab
-│   │   ├── featured.js   # Featured properties tab
-│   │   ├── search.js     # Search tab
-│   │   └── profile.js    # Profile tab
-│   ├── _layout.js        # Root layout with stack navigator
-│   ├── index.js          # Entry point that redirects to tabs
-│   ├── sign-in.js        # Authentication screen
-│   ├── propertyDetails.js # Property details screen
-│   └── appointments.js   # Appointments management screen
-├── components/           # Reusable UI components
-│   ├── PropertyCard.js   # Property card component
-│   ├── Filters.js        # Search filters component
-│   ├── NoResult.js       # Empty state component
-│   ├── Cards.js          # Card components
-│   └── SearchBar.js      # Search input component
-├── constants/            # App constants
-│   ├── colors.js         # Color definitions
-│   ├── data.js           # Sample data
-│   ├── icons.js          # Icon definitions
-│   └── images.js         # Image references
-└── assets/               # Static assets (images, fonts, etc.)
+├── app/                      # Application screens (Expo Router)
+│   ├── (tabs)/               # Tab navigator screens
+│   │   ├── _layout.js        # Tab navigator configuration
+│   │   ├── index.js          # Home tab with featured properties
+│   │   ├── explore.js        # Property exploration screen
+│   │   ├── agents.js         # Agent listings and search
+│   │   └── profile.js        # User profile and settings
+│   ├── _layout.js            # Root layout with stack navigator
+│   ├── sign-in.js            # Authentication screen
+│   ├── sign-up.js            # Registration screen
+│   ├── forgot-password.js    # Password recovery
+│   ├── verify-otp.js         # OTP verification
+│   ├── propertyDetails.js    # Property details screen
+│   ├── add-property.js       # Add new property listing
+│   ├── edit-profile.js       # Edit user profile
+│   ├── saved-properties.js   # Saved/favorite properties
+│   ├── my-properties.js      # User's property listings
+│   ├── chat.js               # Individual chat screen
+│   ├── chats.js              # Chat list/inbox
+│   ├── notifications.js      # Notification center
+│   ├── agent-application.js  # Apply to become an agent
+│   ├── payment-methods.js    # Payment method management
+│   └── more screens...       # Additional app screens
+│
+├── components/               # Reusable UI components
+│   ├── properties/           # Property-related components
+│   │   ├── PropertyCard.js   # Property card component
+│   │   ├── PropertyDetailsSection.js # Property details component
+│   │   ├── PropertyForm.js   # Property creation/editing form
+│   │   └── more...           # Other property components
+│   ├── common/               # Common UI components
+│   │   ├── Filters.js        # Search filters component
+│   │   ├── FavoriteButton.js # Favorite toggle button
+│   │   ├── SwipeWrapper.js   # Swipe gesture wrapper
+│   │   └── more...           # Other common components
+│   └── other components...   # Additional component categories
+│
+├── services/                 # API and service integrations
+│   ├── api.js                # API client setup and base requests
+│   ├── auth.js               # Authentication services
+│   ├── propertyService.js    # Property-related API calls
+│   ├── chat.service.js       # Chat functionality
+│   ├── notificationService.js # Notification handling
+│   ├── websocket.js          # WebSocket connection management
+│   └── more services...      # Additional service modules
+│
+├── constants/                # App constants
+│   ├── colors.js             # Color definitions
+│   └── more constants...     # Other constant files
+│
+├── utils/                    # Utility functions
+│   ├── authStorage.js        # Authentication token storage
+│   ├── imageUtils.js         # Image handling utilities
+│   └── more utilities...     # Other utility modules
+│
+├── context/                  # React Context providers
+│   ├── AuthContext.js        # Authentication context
+│   ├── ThemeContext.js       # Theme management
+│   └── more contexts...      # Other context providers
+│
+├── hooks/                    # Custom React hooks
+│   └── various hooks...      # App-specific hooks
+│
+├── assets/                   # Static assets
+│   ├── fonts/                # Custom fonts
+│   ├── icon.png              # App icon
+│   └── splash.png            # Splash screen
+│
+├── config/                   # Configuration files
+│   ├── index.js              # Main configuration
+│   └── constants.js          # Configuration constants
+│
+└── various config files...   # Root configuration files
 ```
 
 ## Installation and Setup
@@ -64,94 +155,55 @@ npm start
    - Press 'i' for iOS
    - Scan QR code with Expo Go app on your device
 
-## Navigation Structure
-
-The app uses Expo Router for navigation, with the following structure:
-
-- **/** - Root route that redirects to tabs
-- **/(tabs)/** - Tab navigator containing main screens
-  - **/index** - Home screen showing featured and recommended properties
-  - **/featured** - Featured properties screen
-  - **/search** - Property search screen with filters
-  - **/profile** - User profile and settings
-- **/sign-in** - Authentication screen
-- **/propertyDetails** - Property details screen (accepts id parameter)
-- **/appointments** - Appointments management screen
-
-## Development Notes
-
-- The app uses a combination of StyleSheet for styling
-- Sample data is used for demonstration purposes and can be replaced with API calls in production
-- The app follows expo-router conventions for file-based routing
-
-## Missing Assets
-
-The app references several image assets that need to be added to the assets directory. Check the `assets/placeholder-readme.txt` file for details about the required images.
-
-## Dependencies
-
-- Expo Router - For app navigation
-- NativeWind - For styling using Tailwind CSS
-- Expo Image - For optimized image handling
-- React Native Reanimated - For animations
-- Expo Haptics - For haptic feedback
-- And other packages listed in package.json
-
-## License
-
-This project is licensed under the MIT License.
-
 ## Environment Configuration
 
 This app supports both development and production environments:
 
-- **Development**: Uses the local backend at `http://localhost:3001/api`
-- **Production**: Uses the Render backend at `https://eskan-real-estate-backend.onrender.com/api`
+### Development Environment
+- Uses local backend API (default: `http://localhost:3001/api`)
+- WebSocket connection to local server
+- Run with: `npm run android` or `npm run ios`
 
-### Running in Different Environments
+### Production Environment
+- Uses Render backend API (`https://eskan-real-estate-backend.onrender.com/api`)
+- Production WebSocket connection
+- Run with: `npm run android:prod` or `npm run ios:prod`
+- Build with: `npm run build:android` or `npm run build:ios`
 
-Use these commands to run the app in different environments:
+## Building for Production
 
-- **Development (Local Backend)**:
-  ```
-  npm run android
-  ```
+### Using EAS Build (Recommended)
+```bash
+# Configure EAS
+npx eas build:configure
 
-- **Production (Render Backend)**:
-  ```
-  npm run android:prod
-  ```
+# Build for Android
+npm run build:android
 
-## Android Studio Setup
+# Build for iOS
+npm run build:ios
+```
 
-To run the app in Android Studio:
+### Manual Android Build
+1. Generate native projects: `npm run prebuild:android`
+2. Open Android Studio and build the APK/AAB
 
-1. Make sure you have the Android development environment set up:
-   ```
-   npm install
-   ```
+## Development Notes
 
-2. Generate the Android project files:
-   ```
-   npm run prebuild:android
-   ```
+- The app uses environment variables for configuration, stored in `.env` files (not included in repo)
+- WebSocket connections are used for real-time chat and notifications
+- The app implements deep linking for authentication flows and notifications
+- Supabase is used for storage of property images
+- The backend API handles authentication, property data, and user management
 
-3. Open Android Studio and select "Open an existing Android Studio project"
+## Contributing
 
-4. Navigate to your project's `android` folder and open it
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-5. Connect a device or start an emulator
+## License
 
-6. Click the "Run" button in Android Studio
-
-### Building a Release APK
-
-To build a release APK that uses the production (Render) backend:
-
-1. In Android Studio, select Build → Generate Signed Bundle / APK
-2. Choose APK
-3. Fill in your keystore information (create a new one if needed)
-4. Select release build variant
-5. Click Finish
-
-The APK will be built with the production configuration pointing to your Render backend. 
+This project is licensed under the MIT License. 
