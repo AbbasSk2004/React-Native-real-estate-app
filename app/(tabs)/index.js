@@ -65,11 +65,21 @@ export default function Home() {
       }
 
       if (Array.isArray(recommended)) {
-        setRecommendedProperties(recommended);
+        // Exclude user-owned listings just in case the service missed any
+        const filteredRecs = (isAuthenticated && userId)
+          ? recommended.filter(p => p?.profiles_id !== userId)
+          : recommended;
+        // Preserve meta attributes like `source` if present
+        if (recommended.source) filteredRecs.source = recommended.source;
+        // Remove duplicate property entries by id to avoid duplicate React keys
+        const dedupedRecs = [...new Map(filteredRecs.map(item => [item.id, item])).values()];
+        if (filteredRecs.source) dedupedRecs.source = filteredRecs.source;
+        setRecommendedProperties(dedupedRecs);
         // Check if recommendation source is available
-        if (recommended.source) {
-          setRecSource(recommended.source === 'ml' ? 'ML' : 
-                      recommended.source === 'js' ? 'JS' : 'Default');
+        const srcMeta = (recommended.source || dedupedRecs.source);
+        if (srcMeta) {
+          setRecSource(srcMeta === 'ml' ? 'ML' : 
+                      srcMeta === 'js' ? 'JS' : 'Default');
         } else {
           setRecSource(null);
         }

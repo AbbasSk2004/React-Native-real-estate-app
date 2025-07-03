@@ -364,7 +364,11 @@ export default function PropertyCard({ property, onPress, style, featuredStyle =
         
         <View style={styles.listDetailsContainer}>
           <View>
-            <Text style={[styles.listTitle, isDark && styles.darkText]} numberOfLines={1}>
+            <Text
+              style={[styles.listTitle, isDark && styles.darkText]}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
               {property?.title && property.title.trim().length > 0
                 ? property.title
                 : `Beautiful ${property.property_type || 'Property'}`}
@@ -538,7 +542,7 @@ const styles = StyleSheet.create({
   },
   listViewCard: {
     flexDirection: 'row',
-    height: 140,
+    height: 160,
   },
   imageContainer: {
     position: 'relative',
@@ -763,7 +767,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 16,
     flexDirection: 'row',
-    height: 130,
+    height: 160,
     position: 'relative',
   },
   darkListContainer: {

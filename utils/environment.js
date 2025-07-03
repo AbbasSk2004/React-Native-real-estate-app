@@ -48,4 +48,36 @@ export const getEnvironment = () => {
 export const logEnvironmentInfo = () => {
   console.log(`[Environment] Running in ${getEnvironment()} mode`);
   console.log(`[Environment] API URL: ${process.env.EXPO_PUBLIC_API_BASE_URL || 'Not explicitly set'}`);
-}; 
+};
+
+/**
+ * Suppress verbose console logs for specific subsystems to keep the log output clean.
+ * This runs as early as possible because this file is imported before the app starts.
+ */
+
+(() => {
+  // Prefixes of log messages we want to hide
+  const SUPPRESSED_PREFIXES = [
+    '[WebSocket]',
+    '[useNotifications]',
+    '[NotificationContext]',
+    'Auth state in Profile:',
+    'Using ML-based recommendations',
+  ];
+
+  const shouldSuppress = (msg) => {
+    if (typeof msg !== 'string') return false;
+    return SUPPRESSED_PREFIXES.some((prefix) => msg.startsWith(prefix));
+  };
+
+  // Preserve original implementations
+  const originalLog = console.log;
+
+  // Override console.log
+  console.log = (...args) => {
+    if (args.length && shouldSuppress(args[0])) {
+      return; // Drop suppressed logs
+    }
+    originalLog(...args);
+  };
+})(); 

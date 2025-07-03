@@ -224,17 +224,16 @@ const AddPropertyScreen = () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [16, 9],
+        allowsEditing: false,
         quality: 0.8,
+        allowsMultipleSelection: !isMain,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const selectedImage = result.assets[0];
         if (isMain) {
-          setMainImage(selectedImage);
+          setMainImage(result.assets[0]);
         } else {
-          setAdditionalImages(prev => [...prev, selectedImage]);
+          setAdditionalImages(prev => [...prev, ...result.assets]);
         }
       }
     } catch (error) {

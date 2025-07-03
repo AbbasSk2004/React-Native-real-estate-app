@@ -353,7 +353,7 @@ const getPersonalizedRecommendations = async (userId, limit = 5) => {
 
       // Calculate similarity scores for each property based on viewing history
       const propertyScores = allProperties
-        .filter(prop => !recentViews.find(view => view.property_id === prop.id)) // Exclude viewed properties
+        .filter(prop => !recentViews.find(view => view.property_id === prop.id) && prop.profiles_id !== userId) // Exclude viewed & own properties
         .map(property => {
           const totalScore = recentViews.reduce((score, view) => {
             return score + calculateSimilarity(view.property, property);
@@ -436,12 +436,22 @@ export const getRecommendedProperties = async (userId = null, limit = 5) => {
         result = await getLocalRecommendations(limit);
       }
 
-      // Cache successful result
-      if (Array.isArray(result)) {
-        setCachedRecs(userId, limit, result);
+      // ------------------------------------------------------------------
+      // Filter out properties that belong to the current user (if any)
+      // ------------------------------------------------------------------
+      let filteredResult = result;
+      if (Array.isArray(result) && userId) {
+        filteredResult = result.filter(p => p?.profiles_id !== userId);
+        // Preserve the custom `source` attribute added to the array object
+        if (result.source) filteredResult.source = result.source;
       }
 
-      return result;
+      // Cache successful result
+      if (Array.isArray(filteredResult)) {
+        setCachedRecs(userId, limit, filteredResult);
+      }
+
+      return filteredResult;
     })();
 
     pendingRecPromises.set(pendingKey, fetchPromise);
