@@ -2,6 +2,8 @@ import api from './api';
 import { formatNotificationForDisplay } from '../utils/notificationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { showBrowserNotification } from '../utils/notificationUtils';
 
 const CACHE_KEY = 'cached_notifications';
 const CACHE_TIMESTAMP_KEY = 'notifications_cache_timestamp';
@@ -385,4 +387,55 @@ const notificationService = {
   }
 };
 
-export default notificationService; 
+// ==========================
+// Local push notification helper
+// ==========================
+
+/**
+ * Display a local push / browser notification for the given payload.
+ * Works on native (Expo + FCM) and web.
+ * This does NOT require the Expo push token – it simply triggers a system
+ * notification on the device, which is useful when you are already connected via
+ * WebSocket and want to surface the event even if Expo remote push is not
+ * configured.
+ *
+ * @param {object} notification - The notification payload from the server.
+ *   Expected fields: { title, message, type, data }
+ */
+export const showLocalNotification = async (notification) => {
+  if (!notification) return;
+
+  const title = notification.title || 'New notification';
+  const body = notification.message || notification.content || 'You have a new notification';
+
+  // Web platform ➜ use the existing browser notification helper
+  if (Platform.OS === 'web') {
+    showBrowserNotification(title, body);
+    return;
+  }
+
+  // Native platforms ➜ use expo-notifications local push
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: notification.data || {},
+        sound: true,
+      },
+      trigger: null, // Immediate
+    });
+  } catch (err) {
+    console.error('[notificationService] Failed to show local notification:', err);
+  }
+};
+
+// Re-export in the default export, so callers can do:
+// import notificationService, { showLocalNotification } from '...'
+// without causing breaking changes.
+
+// eslint-disable-next-line import/no-anonymous-default-export
+export default {
+  ...notificationService,
+  showLocalNotification,
+}; 

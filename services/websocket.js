@@ -1,5 +1,6 @@
 import config from '../config';
 import authStorage from '../utils/authStorage';
+import { showLocalNotification } from './notificationService';
 
 class WebSocketService {
   constructor() {
@@ -115,6 +116,20 @@ class WebSocketService {
       if (type === 'notification_created' || type === 'notification_updated' || 
           type === 'notification_deleted' || type === 'new_message') {
         // These events should also trigger notification listeners for real-time updates
+        if (type === 'notification_created' && data?.notification) {
+          // Fire a local push notification so the user gets a system alert
+          showLocalNotification(data.notification);
+        } else if (type === 'new_message') {
+          // For new messages we may not have a wrapped notification object – craft a placeholder
+          const localNotif = {
+            title: 'New message',
+            message: data?.content || 'You have a new message',
+            data,
+            type: 'message',
+          };
+          showLocalNotification(localNotif);
+        }
+
         if (type === 'new_message') {
           // Forward message events to notification_created listeners as well
           this.notify('notification_created', data);

@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter, Redirect } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
-  Image,
   ImageBackground,
   SafeAreaView,
   StatusBar,
@@ -11,13 +10,12 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { getImage } from '../constants/images';
+// import { getImage } from '../constants/images'; // Volkswagen logo removed
 import { useAuth } from '../context/AuthContext';
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const { isAuthenticated, initialized } = useAuth();
-  const logoImage = getImage('logo');
 
   // Early redirect for authenticated users once auth is fully initialised.
   if (initialized && isAuthenticated) {
@@ -59,17 +57,7 @@ export default function WelcomeScreen() {
         
         <View style={styles.content}>
           <View style={styles.header}>
-            {logoImage ? (
-              <Image
-                source={logoImage}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={styles.logoPlaceholder}>
-                <Text style={styles.logoText}>REAL ESTATE</Text>
-              </View>
-            )}
+            {/* Logo removed */}
             <Text style={styles.title}>Welcome to Real Estate</Text>
             <Text style={styles.subtitle}>Find your perfect home with us</Text>
           </View>
@@ -133,26 +121,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 40,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
-  },
-  logoPlaceholder: {
-    width: 120,
-    height: 120,
-    backgroundColor: '#3366FF',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontSize: 16,
   },
   title: {
     fontSize: 32,

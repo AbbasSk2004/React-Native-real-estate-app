@@ -19,6 +19,7 @@ export default function PrivacyScreen() {
           headerStyle: {
             backgroundColor: isDark ? '#1A1A1A' : '#F5F5F5',
           },
+          headerTintColor: isDark ? '#FFF' : '#333',
           headerShadowVisible: false,
         }}
       />

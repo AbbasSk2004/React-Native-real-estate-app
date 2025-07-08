@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
-    Image,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -13,7 +12,7 @@ import {
     View,
     Alert
 } from 'react-native';
-import { getImage } from '../constants/images';
+// import { getImage } from '../constants/images'; // Volkswagen logo removed
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import authService from '../services/auth';
@@ -35,9 +34,6 @@ const SignUpScreen = () => {
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  
-  // Get logo image safely
-  const logoImage = getImage('logo');
   
   // Theme colors
   const { getThemeColors, isDarkMode } = useTheme();
@@ -257,17 +253,7 @@ const SignUpScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          {logoImage ? (
-            <Image 
-              source={logoImage} 
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          ) : (
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>REAL ESTATE</Text>
-            </View>
-          )}
+          {/* Logo removed */}
           {showOtpInput ? (
             <>
               <Text style={[styles.title, { color: colors.text }]}>Verify Your Email</Text>
@@ -445,26 +431,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 40,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
-  },
-  logoPlaceholder: {
-    width: 120,
-    height: 120,
-    backgroundColor: '#3366FF',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontSize: 16,
   },
   title: {
     fontSize: 28,
